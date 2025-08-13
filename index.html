@@ -641,17 +641,18 @@
                 } else {
                     contentHTML = `
                         <label class="block text-sm font-medium text-gray-700">${label}</label>
-                        <textarea
-                            rows="1"
-                            data-key="${key}"
-                            value="${value}"
-                            ${!canEdit ? 'disabled' : ''}
-                            class="indication-textarea w-full border-0 focus:ring-0 focus:border-0 bg-transparent text-sm font-medium py-1 resize-none overflow-hidden disabled:bg-gray-50 disabled:text-gray-500"
-                        />
                     `;
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'indication-textarea w-full border-0 focus:ring-0 focus:border-0 bg-transparent text-sm font-medium py-1 resize-none overflow-hidden disabled:bg-gray-50 disabled:text-gray-500';    
+                    textarea.setAttribute('rows', '1');
+                    textarea.setAttribute('data-key',"${key}");
+                    textarea.setAttribute('${!canEdit ? 'disabled' : ''}');
+                    textarea.value = value;
                 }
                 div.innerHTML = contentHTML;
+                div.appendChild(div)
                 generalForm.appendChild(div);
+                autoResizeTextarea(textarea);
             }
         };
 
@@ -754,7 +755,7 @@
                 schedulesCell.className = 'px-2 py-1.5 w-60';
                 let schedulesContent = '';
                 const shouldShowSchedulesButtons = indication.schedulesButtons && indication.schedulesButtons.length > 0;
-                const isSchedulesEditable = isMedicoAndDraft || appState.currentRole === 'enfermera';
+                const isSchedulesEditable = appState.currentRole === 'enfermera';
                 
                 // Se define una clase para los botones no-clickables para permitir el tooltip.
                 // Los botones no son clickables si: la indicación está suspendida O el rol actual es médico
@@ -1656,6 +1657,7 @@
     </script>
 </body>
 </html>
+
 
 
 
