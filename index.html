@@ -1,0 +1,1658 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo de Indicaciones Médicas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librería Sortable.js para la funcionalidad de arrastrar y soltar -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Clase para el "handle" de arrastre que cambia el cursor */
+        .drag-handle {
+            cursor: grab;
+        }
+        /* Estilos para el elemento fantasma de Sortable.js */
+        .sortable-ghost {
+            opacity: 0.2;
+        }
+        .radio-route-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.125rem;
+        }
+        .radio-route-group input[type="radio"] {
+            display: none;
+        }
+        .radio-route-group label {
+            padding: 0.0625rem 0.25rem;
+            border-radius: 9999px;
+            font-size: 0.625rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid #d1d5db;
+            color: #4b5563;
+            background-color: #f9fafb;
+            transition: all 0.2s;
+        }
+        .radio-route-group input[type="radio"]:checked + label {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #2563eb;
+        }
+        .schedule-popup {
+            position: absolute;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s ease-in-out;
+            transform-origin: top center;
+        }
+        .schedule-popup.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .schedule-popup.above {
+            transform-origin: bottom center;
+            transform: translateY(10px);
+        }
+        .schedule-popup.above.visible {
+            transform: translateY(0);
+        }
+        .schedule-popup::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            left: var(--arrow-left, 50%);
+        }
+        .schedule-popup.below::before {
+            top: -8px;
+            border-bottom: 8px solid white;
+        }
+        .schedule-popup.above::before {
+            bottom: -8px;
+            border-top: 8px solid white;
+        }
+        #tooltip {
+            position: fixed;
+            z-index: 60;
+            background-color: rgba(31, 41, 55, 0.95);
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            max-width: 250px;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+        #tooltip.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        #tooltip::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            left: var(--arrow-left, 50%);
+        }
+        #tooltip.top::after {
+            bottom: -6px;
+            border-top: 6px solid rgba(31, 41, 55, 0.95);
+        }
+        #tooltip.bottom::after {
+            top: -6px;
+            border-bottom: 6px solid rgba(31, 41, 55, 0.95);
+        }
+        /* Estilos para el botón de razón seleccionado */
+        .reason-button.selected {
+            background-color: #dbeafe; /* bg-blue-100 */
+            border-color: #93c5fd; /* border-blue-300 */
+            font-weight: 600; /* font-semibold */
+            color: #1e40af; /* text-blue-800 */
+        }
+
+        /* Clase para la indicación suspendida - COMBINACIÓN DE OPCIONES 1, 4 Y 5 */
+        .suspended-indication {
+            filter: grayscale(1); /* Fila en escala de grises */
+            background-color: #f3f4f6; /* Fondo gris claro */
+            color: #9ca3af; /* Color de texto gris */
+            font-style: italic; /* Tipografía diferente: cursiva */
+        }
+        /* Estilos para los botones de horario en escala de grises */
+        .grayscale-filter {
+            filter: grayscale(100%);
+            opacity: 0.5;
+            border-color: transparent !important;
+        }
+
+        /* Nueva clase para botones no clicables que permite el tooltip */
+        .non-clickable {
+            /* La siguiente línea es clave para que los eventos de mouse sigan funcionando en el padre */
+            /* pointer-events: none;  -- se ha removido para que el mouseover funcione */
+        }
+        
+        /* Etiqueta de estado para la Opción 1 */
+        .status-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6b7280;
+            background-color: #e5e7eb;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            margin-left: 0.5rem;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+    <!-- Main Container -->
+    <div id="app" class="min-h-screen relative">
+        <!-- Header -->
+        <div class="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10">
+            <div class="flex justify-between items-center mb-2">
+                <div>
+                    <h1 class="text-base font-bold text-gray-900">Indicaciones Médicas</h1>
+                    <p class="text-sm text-gray-600">
+                        <strong>Paciente:</strong> María G. | <strong>RUT:</strong> 12.345.678-9 |
+                        <strong>Edad:</strong> 65 años | <strong>Alergias:</strong> Penicilina
+                    </p>
+                </div>
+                <div class="flex items-center gap-1">
+                    <div class="flex items-center gap-1">
+                        <label for="role-select" class="text-sm font-medium text-gray-700">Ver como:</label>
+                        <select id="role-select" class="border border-gray-300 rounded-md px-2 py-0.5 text-sm">
+                            <option value="medico">Médico</option>
+                            <option value="enfermera">Enfermera</option>
+                            <option value="tens">TENS</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Date Navigation -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <button id="prev-day" class="flex items-center gap-1 px-2 py-1 text-gray-600 hover:text-gray-900">
+                        <!-- Icono ChevronLeft -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg>
+                        Día Anterior
+                    </button>
+                    <span id="current-date-display" class="font-medium text-gray-900 text-sm"></span>
+                    <button id="next-day" class="flex items-center gap-1 px-2 py-1 text-gray-600 hover:text-gray-900">
+                        Día Siguiente
+                        <!-- Icono ChevronRight -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                </div>
+
+                <button id="action-button" class="px-3 py-1.5 rounded-md font-medium text-sm"></button>
+            </div>
+
+            <!-- Banner de Borrador -->
+            <div id="draft-banner" class="mt-2 p-1.5 bg-yellow-50 border border-yellow-200 rounded-md flex items-center gap-2 hidden">
+                <!-- Icono AlertTriangle -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle text-yellow-600"><path d="m21.73 18-9-15-9 15h18Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <span class="text-sm text-yellow-800">Hay cambios pendientes sin autorizar</span>
+            </div>
+        </div>
+
+        <div class="p-4 space-y-3">
+            <!-- Sección de Indicaciones Generales -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+                <h2 class="text-sm font-semibold text-gray-900 mb-2">Indicaciones Generales</h2>
+                <div id="general-indications-form" class="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2">
+                    <!-- Los inputs de indicaciones generales se renderizarán aquí -->
+                </div>
+            </div>
+
+            <!-- Contenedor Flex para la Opción B: Principal (70%) y Sidebar (30%) -->
+            <div class="flex flex-col lg:flex-row gap-3">
+                <!-- Columna Principal (Indicaciones Farmacológicas y Pendientes) -->
+                <div class="lg:w-7/12 space-y-3">
+                    <!-- Sección de Indicaciones Farmacológicas -->
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                        <div class="p-3 border-b border-gray-200">
+                            <div class="flex justify-between items-center">
+                                <h2 class="text-sm font-semibold text-gray-900">Indicaciones Farmacológicas</h2>
+                                <!-- Botón para agregar una nueva indicación. Ahora se controla su visibilidad por JS. -->
+                                <button id="add-new-indication" class="flex items-center gap-2 px-2 py-1 text-blue-600 hover:bg-blue-50 rounded-md hidden">
+                                    <!-- Icono Plus -->
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                    <span class="text-sm">Agregar</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead id="pharma-table-head">
+                                    <!-- Los encabezados de la tabla se renderizarán aquí -->
+                                </thead>
+                                <tbody id="pharmacological-indications-table" class="divide-y divide-gray-200">
+                                    <!-- Las filas de indicaciones farmacológicas se renderizarán aquí -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Sección de Indicaciones Pendientes de Revisión -->
+                    <div id="pending-review-section" class="bg-white rounded-lg shadow-sm border border-gray-200 hidden">
+                        <div class="bg-blue-50 px-3 py-2 border-b border-blue-200">
+                            <h3 class="text-sm font-medium text-blue-800">Indicaciones Pendientes de Revisión</h3>
+                        </div>
+                        <div id="pending-review-list" class="p-2 bg-blue-25 space-y-1">
+                            <!-- Las indicaciones pendientes se renderizarán aquí -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Columna de Barra Lateral (Indicaciones Verbales) -->
+                <div class="lg:w-5/12 space-y-3">
+                    <!-- Sección de Indicaciones Verbales Pendientes -->
+                    <div id="verbal-indications-section" class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hidden">
+                        <div class="flex items-center gap-2 mb-2">
+                            <!-- Icono AlertTriangle -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle text-amber-500"><path d="m21.73 18-9-15-9 15h18Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            <h2 class="text-sm font-semibold text-gray-900">Indicaciones Verbales por Validar</h2>
+                        </div>
+                        <div id="verbal-indications-list" class="space-y-1">
+                            <!-- Las indicaciones verbales se renderizarán aquí -->
+                        </div>
+                    </div>
+
+                    <!-- Nueva Sección para Indicaciones Verbales Procesadas -->
+                    <div id="processed-verbal-section" class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hidden">
+                        <div class="flex items-center gap-2 mb-2">
+                            <!-- Icono FileText -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text text-gray-500"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+                            <h2 class="text-sm font-semibold text-gray-900">Indicaciones Verbales Procesadas</h2>
+                        </div>
+                        <div id="processed-verbal-list" class="space-y-1">
+                            <!-- Las indicaciones verbales procesadas se renderizarán aquí -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Administración como Pop-up -->
+    <div id="schedule-modal" class="schedule-popup bg-white rounded-xl shadow-2xl p-4 w-64 border border-gray-200">
+        <!-- Paso 1: Selección de Estado -->
+        <div id="step-1" class="space-y-4">
+            <p class="text-sm font-medium text-gray-700" id="modal-schedule-text-step1"></p>
+            <div>
+                <label for="admin-time-step1" class="block text-xs font-medium text-gray-700 mb-1">Hora de administración real</label>
+                <input type="time" id="admin-time-step1" class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm">
+            </div>
+            <div class="flex flex-col gap-3">
+                <!-- Botón para Administrado -->
+                <button id="admin-done-step1" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex justify-center items-center" aria-label="Administrado">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check"><path d="M20 6 9 17l-5-5"/></svg>
+                    Administrado
+                </button>
+                <!-- Botón para No Administrado -->
+                <button id="admin-not-done-step1" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 flex justify-center items-center" aria-label="No Administrado">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    No Administrado
+                </button>
+            </div>
+        </div>
+
+        <!-- Paso 2: Razón de No Administración (Oculto inicialmente) -->
+        <div id="step-2" class="space-y-4 hidden">
+            <p class="text-sm font-semibold text-gray-700">Razón de no administración:</p>
+            <div class="flex flex-col gap-2">
+                <button class="reason-button w-full px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-left" data-reason="Paciente en examen">Paciente en examen</button>
+                <button class="reason-button w-full px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-left" data-reason="Paciente se niega">Paciente se niega</button>
+                <button class="reason-button w-full px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-left" data-reason="No hay stock">No hay stock</button>
+                <button class="reason-button w-full px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-left" data-reason="Indicación suspendida">Indicación suspendida</button>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones</label>
+                <textarea id="admin-observations-step2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" rows="2" placeholder="Observaciones opcionales..."></textarea>
+            </div>
+            <button id="modal-save-step2" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">Guardar</button>
+        </div>
+    </div>
+    
+    <!-- Modal de Confirmación para Suspender Indicación -->
+    <div id="confirm-suspend-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Confirmar Suspensión</h3>
+            <p class="text-sm text-gray-600 mb-4">¿Estás seguro de que quieres suspender esta indicación? Esta acción no se puede deshacer una vez autorizada.</p>
+            <div class="flex justify-end gap-3">
+                <button id="cancel-suspend-button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium">Cancelar</button>
+                <button id="confirm-suspend-button" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Suspender</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Tooltip para las observaciones (nuevo) -->
+    <div id="tooltip" role="tooltip"></div>
+
+    <script>
+        // Gestión de datos y estado de la aplicación
+        let appState = {
+            currentRole: 'medico',
+            hasDraft: false,
+            currentDate: '2025-08-08',
+            generalIndications: {},
+            pharmacologicalIndications: [],
+            verbalIndications: [],
+            processedVerbalIndications: [],
+            selectedSchedule: null,
+            // Nuevo estado para la indicación seleccionada en el modal de confirmación
+            indicationToSuspend: null
+        };
+
+        const ADMINISTRATION_ROUTES = [
+            'VO',
+            'EV',
+            'SC',
+            'Otro'
+        ];
+
+        const roles = {
+            medico: 'Médico',
+            enfermera: 'Enfermera',
+            tens: 'TENS'
+        };
+
+        const roleSelect = document.getElementById('role-select');
+        const actionButton = document.getElementById('action-button');
+        const draftBanner = document.getElementById('draft-banner');
+        const generalForm = document.getElementById('general-indications-form');
+        const pharmaTableHead = document.getElementById('pharma-table-head');
+        const pharmaTableBody = document.getElementById('pharmacological-indications-table');
+        const addIndicationButton = document.getElementById('add-new-indication');
+        const pendingReviewSection = document.getElementById('pending-review-section');
+        const pendingReviewList = document.getElementById('pending-review-list');
+        const verbalIndicationsSection = document.getElementById('verbal-indications-section');
+        const verbalIndicationsList = document.getElementById('verbal-indications-list');
+        const processedVerbalSection = document.getElementById('processed-verbal-section');
+        const processedVerbalList = document.getElementById('processed-verbal-list');
+        const currentDateDisplay = document.getElementById('current-date-display');
+        const prevDayButton = document.getElementById('prev-day');
+        const nextDayButton = document.getElementById('next-day');
+
+        const scheduleModal = document.getElementById('schedule-modal');
+        const modalStep1 = document.getElementById('step-1');
+        const modalStep2 = document.getElementById('step-2');
+        const modalScheduleTextStep1 = document.getElementById('modal-schedule-text-step1');
+        const adminTimeInput = document.getElementById('admin-time-step1');
+        const adminDoneStep1Button = document.getElementById('admin-done-step1');
+        const adminNotDoneStep1Button = document.getElementById('admin-not-done-step1');
+        const adminObservationsStep2 = document.getElementById('admin-observations-step2');
+        const modalSaveStep2Button = document.getElementById('modal-save-step2');
+
+        const confirmSuspendModal = document.getElementById('confirm-suspend-modal');
+        const cancelSuspendButton = document.getElementById('cancel-suspend-button');
+        const confirmSuspendButton = document.getElementById('confirm-suspend-button');
+
+        const tooltip = document.getElementById('tooltip');
+
+        let scheduleModalButton = null;
+        let sortableInstance = null; // Instancia de Sortable.js
+
+        const DB_NAME = 'MedicalIndicationsDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'indications';
+        let db;
+
+        const initDB = () => {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onerror = event => {
+                    console.error('IndexedDB error:', event.target.errorCode);
+                    reject('IndexedDB error');
+                };
+
+                request.onupgradeneeded = event => {
+                    db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+
+                request.onsuccess = event => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+            });
+        };
+
+        const saveData = (data) => {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(STORE_NAME, 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                store.put({ id: 1, data: JSON.stringify(data) });
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = event => reject(event.target.error);
+            });
+        };
+
+        const loadData = () => {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    reject('DB not initialized');
+                    return;
+                }
+                const transaction = db.transaction(STORE_NAME, 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.get(1);
+
+                request.onsuccess = event => {
+                    const data = event.target.result ? JSON.parse(event.target.result.data) : null;
+                    resolve(data);
+                };
+                request.onerror = event => reject(event.target.error);
+            });
+        };
+
+        const getRouteColor = (route) => {
+            const colors = {
+                'VO': 'bg-blue-100 text-blue-800',
+                'EV': 'bg-green-100 text-green-800',
+                'SC': 'bg-yellow-100 text-yellow-800',
+                'Otro': 'bg-gray-100 text-gray-800'
+            };
+            return colors[route] || 'bg-gray-100 text-gray-800';
+        };
+
+        const getSafeRoute = (route) => {
+          return ADMINISTRATION_ROUTES.includes(route) ? route : '';
+        }
+
+        const getScheduleButtonStatus = (indication, schedule) => {
+            // Si la indicación está suspendida, anular el color del estado normal
+            if (indication.status === 'suspended') {
+                return 'bg-gray-300 text-gray-500 border-transparent';
+            }
+
+            const administeredStatus = indication.administered[schedule]?.status;
+            if (administeredStatus === 'done') return 'bg-green-500 text-white';
+            if (administeredStatus === 'not-done') return 'bg-red-500 text-white';
+
+            const now = new Date();
+            const scheduleTime = new Date();
+            const parts = schedule.split(':');
+            const hours = parseInt(parts[0]);
+            const minutes = parts.length > 1 ? parseInt(parts[1]) : 0;
+
+            if (isNaN(hours) || isNaN(minutes)) {
+                return 'bg-gray-200 text-gray-800 hover:bg-gray-300';
+            }
+
+            scheduleTime.setHours(hours, minutes);
+
+            if (scheduleTime < now && appState.currentDate === '2025-08-08') return 'bg-orange-400 text-white';
+
+            return 'bg-gray-200 text-gray-800 hover:bg-gray-300';
+        };
+
+        const formatDate = (dateString) => {
+            const date = new Date(dateString);
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            return date.toLocaleDateString('es-ES', options);
+        };
+
+        const autoResizeTextarea = (textarea) => {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        };
+
+        const handleScheduleInputBlur = (inputElement) => {
+            const schedulesString = inputElement.value;
+            const id = parseInt(inputElement.getAttribute('data-id'));
+            const indication = appState.pharmacologicalIndications.find(ind => ind.id === id);
+
+            if (indication) {
+                indication.schedules = schedulesString;
+                const schedulesArray = schedulesString.split('-').map(s => s.trim()).filter(s => s !== '');
+                indication.schedulesButtons = schedulesArray;
+
+                // Lógica clave: una indicación se considera 'activa' (no reordenable)
+                // si tiene al menos un horario establecido.
+                if(schedulesString.trim() !== '') {
+                    // Si se agregan horarios, la indicación pasa a estado 'active'.
+                    indication.status = 'active';
+                    indication.needsReview = false;
+                } else {
+                    // Si se borran los horarios, la indicación se mantiene en el estado actual
+                    // (ya sea 'draft' o 'pending-schedule', lo que sea que fuera antes).
+                    // Para simplificar, si no hay horarios, volvemos al estado 'draft'.
+                    // Esto asume que el cambio lo hace la enfermera. Si lo hace el médico, el estado es 'draft'.
+                    if (appState.currentRole === 'medico') {
+                        indication.status = 'draft';
+                    } else if (appState.currentRole === 'enfermera') {
+                        indication.status = 'pending-schedule';
+                    }
+                    indication.needsReview = true;
+                }
+
+                appState.hasDraft = true;
+                saveState();
+                renderUI();
+            }
+        };
+
+        /**
+         * Formats a schedule time string to HH:MM format.
+         * @param {string} schedule The schedule time string (e.g., "8", "16", "10:30").
+         * @returns {string} The formatted time string (e.g., "08:00", "16:00", "10:30").
+         */
+        const formatScheduleTime = (schedule) => {
+            if (!schedule) return '';
+            const parts = schedule.split(':');
+            if (parts.length === 1) {
+                // If it's a single number, add ":00" and pad with a leading zero if needed
+                const hour = parseInt(parts[0], 10);
+                if (!isNaN(hour) && hour >= 0 && hour <= 23) {
+                    return `${String(hour).padStart(2, '0')}:00`;
+                }
+            } else if (parts.length === 2) {
+                // If it's already in HH:MM format, validate and return
+                const hour = parseInt(parts[0], 10);
+                const minute = parseInt(parts[1], 10);
+                if (!isNaN(hour) && !isNaN(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+                    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                }
+            }
+            // Return original schedule if it doesn't match expected formats
+            return schedule;
+        };
+
+
+        const renderUI = () => {
+            renderGeneralIndications();
+            renderPharmacologicalIndications();
+            renderPendingReviewSection();
+            renderVerbalIndications();
+            renderProcessedVerbalIndications();
+            updateHeaderUI();
+        };
+
+        const renderGeneralIndications = () => {
+            generalForm.innerHTML = '';
+            const canEdit = appState.currentRole === 'medico' && appState.hasDraft;
+
+            const generalIndicationsData = appState.generalIndications;
+            const labels = {
+                manejo: 'Manejo',
+                reposo: 'Reposo',
+                regimen: 'Régimen',
+                controlIngesta: 'Control de ingesta',
+                apoyoVentilatorio: 'Apoyo ventilatorio',
+                balanceHidrico: 'Balance hídrico',
+                hemoglucotest: 'Hemoglucotest',
+                rehabilitacion: 'Rehabilitación',
+                alergias: 'Alergias',
+                aislamiento: 'Aislamiento',
+                cateteres: 'Catéteres',
+                cup: 'CUP'
+            };
+
+            for (const key in generalIndicationsData) {
+                const value = generalIndicationsData[key];
+                const label = labels[key] || key;
+                const div = document.createElement('div');
+                div.className = 'space-y-1';
+                let contentHTML = '';
+
+                if (key === 'rehabilitacion') {
+                    contentHTML = `
+                        <label class="block text-sm font-medium text-gray-700">${label}</label>
+                        <div class="flex flex-wrap gap-2">
+                            ${Object.entries(value).map(([subKey, checked]) => `
+                                <label class="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        data-key="${key}"
+                                        data-subkey="${subKey}"
+                                        ${checked ? 'checked' : ''}
+                                        ${!canEdit ? 'disabled' : ''}
+                                        class="mr-1"
+                                    />
+                                    <span class="text-sm text-gray-600 uppercase">${subKey}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    contentHTML = `
+                        <label class="block text-sm font-medium text-gray-700">${label}</label>
+                        <input
+                            type="text"
+                            data-key="${key}"
+                            value="${value}"
+                            ${!canEdit ? 'disabled' : ''}
+                            class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm disabled:bg-gray-50 disabled:text-gray-500"
+                        />
+                    `;
+                }
+                div.innerHTML = contentHTML;
+                generalForm.appendChild(div);
+            }
+        };
+
+        const renderPharmacologicalIndications = () => {
+            pharmaTableHead.innerHTML = '';
+            pharmaTableBody.innerHTML = '';
+            const isMedicoAndDraft = appState.currentRole === 'medico' && appState.hasDraft;
+            const canEditSchedules = appState.currentRole === 'enfermera';
+            
+            // Destruye la instancia anterior de Sortable.js si existe para evitar conflictos.
+            if (sortableInstance) {
+                sortableInstance.destroy();
+                sortableInstance = null; // Resetea la variable de instancia
+            }
+            
+            // Construir el encabezado de la tabla de forma dinámica
+            let headerHTML = `<tr class="bg-gray-50">`;
+            if (isMedicoAndDraft) {
+                headerHTML += `<th class="px-2 py-1.5 text-left text-sm font-medium text-gray-500 uppercase w-8"></th>`; // Columna de arrastre
+            }
+            headerHTML += `<th class="px-2 py-1.5 text-left text-sm font-medium text-gray-500 uppercase">Indicación</th>`;
+            headerHTML += `<th class="px-2 py-1.5 text-left text-sm font-medium text-gray-500 uppercase w-32">Vía</th>`;
+            headerHTML += `<th class="px-2 py-1.5 text-left text-sm font-medium text-gray-500 uppercase w-60">Horarios</th>`;
+            if (isMedicoAndDraft) {
+                headerHTML += `<th class="px-2 py-1.5 text-left text-sm font-medium text-gray-500 uppercase w-8"></th>`; // Columna de acciones
+            }
+            headerHTML += `</tr>`;
+            pharmaTableHead.innerHTML = headerHTML;
+
+            const indicationsToRender = isMedicoAndDraft
+                ? appState.pharmacologicalIndications
+                : appState.pharmacologicalIndications.filter(ind => ind.status === 'active' || ind.status === 'suspended');
+                // Se ha modificado para que el médico vea todo, y los demás solo vean las activas y suspendidas
+
+            indicationsToRender.forEach(indication => {
+                const row = document.createElement('tr');
+                const isSuspended = indication.status === 'suspended';
+                // Añado una clase distinta para los borrador y pendiente-de-horario para reordenar
+                const isDraggable = indication.status === 'draft' || indication.status === 'pending-schedule';
+                row.className = `${isSuspended ? 'suspended-indication' : ''} hover:bg-gray-50 pharma-row`;
+                row.setAttribute('data-id', indication.id);
+                // El estado del Sortable se basa en si tiene horarios o no
+                row.setAttribute('data-status', isDraggable ? 'draft' : 'active');
+                
+                // Celda de arrastre (drag handle)
+                if (isMedicoAndDraft) {
+                    const dragCell = document.createElement('td');
+                    dragCell.className = `px-2 py-1.5 w-8`;
+                    
+                    // Solo renderiza el "drag-handle" para las indicaciones en estado 'draft' o 'pendiente-de-horario'
+                    if (isDraggable) {
+                        dragCell.classList.add('drag-handle');
+                        dragCell.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-grip-vertical text-gray-400"><path d="M9 6v12"/><path d="M15 6v12"/></svg>`;
+                    }
+                    
+                    row.appendChild(dragCell);
+                }
+
+                // Celda de indicación
+                const indicationCell = document.createElement('td');
+                indicationCell.className = 'px-2 py-1.5 editable-cell';
+                let indicationContent;
+
+                if (isMedicoAndDraft && isDraggable) {
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'indication-textarea w-full border-0 focus:ring-0 focus:border-0 bg-transparent text-sm font-medium py-1 resize-none overflow-hidden';
+                    textarea.setAttribute('rows', '1');
+                    textarea.setAttribute('data-field', 'indication');
+                    textarea.value = indication.indication;
+                    indicationCell.appendChild(textarea);
+                    autoResizeTextarea(textarea);
+                } else {
+                    const statusLabel = isSuspended ? '<span class="status-badge">SUSPENDIDA</span>' : '';
+                    indicationContent = `<span class="text-sm font-medium ${isSuspended ? 'line-through' : ''}">${indication.indication}</span>${statusLabel}`;
+                    indicationCell.innerHTML = indicationContent;
+                }
+                row.appendChild(indicationCell);
+
+                // Celda de vía
+                const routeCell = document.createElement('td');
+                routeCell.className = 'px-2 py-1.5 editable-cell w-32';
+                const safeRoute = getSafeRoute(indication.route);
+                const routeChip = `<span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getRouteColor(safeRoute)}">${safeRoute}</span>`;
+                // Solo editable si es médico, está en borrador/pendiente-de-horario y no está suspendida
+                if (isMedicoAndDraft && isDraggable) {
+                    let routeHtml = `<div class="radio-route-group" data-field="route">`;
+                    routeHtml += ADMINISTRATION_ROUTES.map(route => `
+                        <input type="radio" id="route-${indication.id}-${route}" name="route-${indication.id}" value="${route}" ${getSafeRoute(indication.route) === route ? 'checked' : ''} />
+                        <label for="route-${indication.id}-${route}">${route}</label>
+                    `).join('');
+                    routeHtml += `</div>`;
+                    routeCell.innerHTML = routeHtml;
+                } else {
+                    routeCell.innerHTML = routeChip;
+                }
+                row.appendChild(routeCell);
+
+                // Celda de horarios
+                const schedulesCell = document.createElement('td');
+                schedulesCell.className = 'px-2 py-1.5 w-60';
+                let schedulesContent = '';
+                const shouldShowSchedulesButtons = indication.schedulesButtons && indication.schedulesButtons.length > 0;
+                const isSchedulesEditable = isMedicoAndDraft || appState.currentRole === 'enfermera';
+                
+                // Se define una clase para los botones no-clickables para permitir el tooltip.
+                // Los botones no son clickables si: la indicación está suspendida O el rol actual es médico
+                const isClickable = !isSuspended && appState.currentRole !== 'medico';
+                const nonClickableClass = !isClickable ? 'non-clickable' : '';
+
+                if (shouldShowSchedulesButtons) {
+                    schedulesContent = indication.schedulesButtons.map(schedule => {
+                        const statusClasses = getScheduleButtonStatus(indication, schedule);
+                        const administeredData = indication.administered[schedule];
+                        const observations = administeredData?.observations || '';
+                        const reason = administeredData?.reason || '';
+                        const adminTime = administeredData?.adminTime || '';
+                        const status = administeredData?.status || '';
+                        let statusIcon = '';
+                        if (administeredData?.status === 'done') {
+                            statusIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check absolute -top-1 -right-1 bg-green-600 text-white rounded-full p-0.5"><path d="M20 6 9 17l-5-5"/></svg>`;
+                        } else if (administeredData?.status === 'not-done') {
+                              statusIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></svg>`;
+                        }
+                        const observationsAttr = observations ? `data-observations="${observations}"` : '';
+                        const reasonAttr = reason ? `data-reason="${reason}"` : '';
+                        const adminTimeAttr = adminTime ? `data-admin-time="${adminTime}"` : '';
+                        const statusAttr = status ? `data-status="${status}"` : '';
+                        
+                        // Agregar la clase de escala de grises si la indicación está suspendida
+                        const grayscaleClass = isSuspended ? 'grayscale-filter' : '';
+
+                        return `
+                            <button
+                                class="schedule-button px-2 py-1 rounded-md text-sm font-medium relative ${statusClasses} ${grayscaleClass} ${nonClickableClass}"
+                                data-id="${indication.id}" data-schedule="${schedule}"
+                                ${observationsAttr}
+                                ${reasonAttr}
+                                ${adminTimeAttr}
+                                ${statusAttr}
+                            >
+                                ${schedule}
+                                ${statusIcon}
+                            </button>
+                        `;
+                    }).join('');
+                }
+                
+                const inputDisplay = (isSchedulesEditable && !shouldShowSchedulesButtons) ? '' : 'style="display: none;"';
+                const editButtonDisplay = (isSchedulesEditable && shouldShowSchedulesButtons) ? '' : 'style="display: none;"';
+                
+                if (isSchedulesEditable && !isSuspended) { // Solo editable si no está suspendida
+                    schedulesContent += `
+                        <input
+                            type="text"
+                            data-id="${indication.id}"
+                            data-field="schedules"
+                            value="${indication.schedules}"
+                            class="schedule-input w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                            placeholder="Ej: 8-16-24"
+                            ${inputDisplay}
+                        />
+                        <button class="edit-schedules text-gray-400 hover:text-gray-600 ml-2" data-id="${indication.id}" ${editButtonDisplay}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-edit-3"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/><path d="m15 5-3-3"/></svg>
+                        </button>
+                    `;
+                } else if (!shouldShowSchedulesButtons) {
+                    schedulesContent = `<span class="text-sm italic">${isSuspended ? 'Suspendida' : 'Sin horarios definidos'}</span>`;
+                }
+
+                schedulesCell.innerHTML = `<div class="flex flex-wrap gap-1 items-center">${schedulesContent}</div>`;
+                row.appendChild(schedulesCell);
+
+                // Celda de acciones
+                if (isMedicoAndDraft) {
+                    const actionsCell = document.createElement('td');
+                    actionsCell.className = `px-2 py-1.5 w-8`;
+                    
+                    // Lógica del botón de "suspender" y "eliminar"
+                    let buttonHtml = '';
+                    // El botón de eliminar se muestra para los estados 'draft' y 'pending-schedule'
+                    if (indication.status === 'draft' || indication.status === 'pending-schedule') {
+                        buttonHtml = `
+                            <button class="delete-indication text-gray-400 hover:text-red-600" data-id="${indication.id}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                            </button>
+                        `;
+                    } else if (indication.status === 'active') {
+                        buttonHtml = `
+                            <button class="suspend-indication text-gray-400 hover:text-red-600" data-id="${indication.id}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ban"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+                           </button>
+                        `;
+                    } else {
+                        buttonHtml = `
+                            <button class="text-gray-400 hidden cursor-not-allowed" disabled>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ban"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+                            </button>
+                        `;
+                    }
+                    actionsCell.innerHTML = `<div class="flex gap-2">${buttonHtml}</div>`;
+                    row.appendChild(actionsCell);
+                }
+
+                pharmaTableBody.appendChild(row);
+
+                if (isMedicoAndDraft) {
+                    const textarea = row.querySelector('.indication-textarea');
+                    if (textarea) {
+                        autoResizeTextarea(textarea);
+                    }
+                }
+            });
+            
+            // Vuelve a crear la instancia de Sortable.js, unida al nuevo DOM.
+            if (isMedicoAndDraft) {
+                console.log('Sortable.js inicializado');
+                sortableInstance = Sortable.create(pharmaTableBody, {
+                    handle: '.drag-handle',
+                    ghostClass: 'sortable-ghost',
+                    disabled: false,
+                    delay: 50,
+                    touchStartThreshold: 5,
+                    // Nueva lógica para impedir que una fila 'draft' se inserte entre filas 'active'
+                    onMove: function (evt) {
+                        // El elemento que se está arrastrando tiene que ser un borrador.
+                        const draggedStatus = evt.dragged.getAttribute('data-status');
+                        // El elemento sobre el que se está arrastrando puede ser un borrador o un activo.
+                        const relatedStatus = evt.related.getAttribute('data-status');
+
+                        // Si el elemento que se está moviendo es un borrador y la fila de destino
+                        // es una indicación ya revisada ('active'), se impide el movimiento.
+                        if (draggedStatus === 'draft' && relatedStatus === 'active') {
+                            return false;
+                        }
+
+                        // En cualquier otro caso (borrador sobre borrador, etc.), se permite el movimiento.
+                        return true;
+                    },
+                    onUpdate: function (evt) {
+                        console.log('onUpdate event fired');
+                        const oldIndex = evt.oldIndex;
+                        const newIndex = evt.newIndex;
+                        
+                        if (oldIndex !== newIndex) {
+                            const rows = Array.from(pharmaTableBody.children);
+                            const newOrderIds = rows.map(row => parseInt(row.getAttribute('data-id')));
+                            
+                            const reorderedIndications = newOrderIds.map(id => appState.pharmacologicalIndications.find(ind => ind.id === id));
+                            appState.pharmacologicalIndications = reorderedIndications;
+
+                            appState.hasDraft = true;
+                            saveState();
+                            updateHeaderUI();
+                        }
+                    }
+                });
+            }
+        };
+
+        const renderPendingReviewSection = () => {
+            const isMedicoAndDraft = appState.currentRole === 'medico' && appState.hasDraft;
+            // La sección de pendiente de revisión ahora muestra los estados 'draft' y 'pending-schedule'
+            const pendingIndications = appState.pharmacologicalIndications.filter(ind =>
+                (ind.status === 'draft' || ind.status === 'pending-schedule') && ind.schedulesButtons.length === 0 && ind.indication !== '' 
+            );
+
+            if (!isMedicoAndDraft && pendingIndications.length > 0) {
+                pendingReviewSection.classList.remove('hidden');
+                pendingReviewList.innerHTML = pendingIndications.map(indication => {   
+                        const safeRoute = getSafeRoute(indication.route);
+                        const routeChip = `<span class="ml-2 inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getRouteColor(safeRoute)}">${safeRoute}</span>`;
+
+                        let schedulesControl = '';
+                        if (appState.currentRole === 'enfermera') {
+                            schedulesControl = `
+                                <input
+                                    type="text"
+                                    data-id="${indication.id}"
+                                    data-field="schedules"
+                                    value="${indication.schedules}"
+                                    class="schedule-input w-60 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                                    placeholder="Ej: 8-16-24"
+                                />
+                            `;
+                        } else {
+                            schedulesControl = `<span class="text-sm text-gray-500 italic">Sin horarios definidos</span>`;
+                        }
+
+                        return `
+                            <div class="flex justify-between items-center p-1.5 bg-blue-100 rounded-md mb-1">
+                                <div>
+                                    <span class="text-sm font-medium">${indication.indication}</span>
+                                    ${routeChip}
+                                </div>
+                                ${schedulesControl}
+                            </div>
+                        `;
+                }).join('');
+            } else {
+                pendingReviewSection.classList.add('hidden');
+            }
+        };
+
+        const renderVerbalIndications = () => {
+            const showVerbal = appState.verbalIndications.length > 0;
+            const isMedico = appState.currentRole === 'medico';
+
+            verbalIndicationsSection.classList.toggle('hidden', !showVerbal);
+            if (showVerbal) {
+                verbalIndicationsList.innerHTML = appState.verbalIndications.map(indication => `
+                    <div class="flex justify-between items-center p-2 bg-amber-50 border border-amber-200 rounded-md">
+                        <div>
+                            <span class="text-sm font-medium">${indication.indication}</span>
+                            <p class="text-sm text-gray-600">
+                                Ingresado por ${indication.nurse} a las ${indication.time}
+                            </p>
+                        </div>
+                        ${isMedico ? `
+                            <div class="flex gap-2">
+                                <button class="px-2 py-1 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 validate-verbal" data-id="${indication.id}">
+                                    Validar
+                                </button>
+                                <button class="px-2 py-1 bg-red-600 text-white rounded-md text-sm hover:bg-red-700 reject-verbal" data-id="${indication.id}">
+                                    Rechazar
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+            }
+        };
+
+        const renderProcessedVerbalIndications = () => {
+            const showProcessed = appState.processedVerbalIndications.length > 0;
+            processedVerbalSection.classList.toggle('hidden', !showProcessed);
+
+            if (showProcessed) {
+                processedVerbalList.innerHTML = appState.processedVerbalIndications.map(indication => {
+                    const icon = indication.status === 'validated'
+                        ? `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle text-green-600"><path d="M22 11.08V12a10 10 0 1 1-5.93-8.03"/><path d="m9 11 3 3L22 4"/></svg>`
+                        : `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-circle text-red-600"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>`;
+
+                    const bgColor = indication.status === 'validated' ? 'bg-green-50' : 'bg-red-50';
+                    const borderColor = indication.status === 'validated' ? 'border-green-200' : 'border-red-200';
+
+                    return `
+                        <div class="flex items-center gap-2 p-2 ${bgColor} ${borderColor} rounded-md">
+                            ${icon}
+                            <div>
+                                <span class="text-sm font-medium">${indication.indication}</span>
+                                <p class="text-sm text-gray-600">
+                                    ${indication.status === 'validated' ? 'Validado' : 'Rechazado'} por ${indication.validatedBy} a las ${indication.processedTime}
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        };
+
+        const updateHeaderUI = () => {
+            const role = appState.currentRole;
+            const hasDraft = appState.hasDraft;
+
+            if (role === 'medico') {
+                actionButton.classList.remove('hidden');
+                if (hasDraft) {
+                    actionButton.textContent = 'Autorizar';
+                    actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    actionButton.classList.add('bg-green-600', 'hover:bg-green-700');
+                    // Mostrar el botón de agregar
+                    addIndicationButton.classList.remove('hidden');
+                } else {
+                    actionButton.textContent = 'Editar';
+                    actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                    // Ocultar el botón de agregar si no es médico
+                    addIndicationButton.classList.add('hidden');
+                }
+            } else {
+                actionButton.classList.add('hidden');
+                // Ocultar el botón de agregar si no es médico
+                addIndicationButton.classList.add('hidden');
+            }
+            
+            draftBanner.classList.toggle('hidden', !hasDraft);
+            currentDateDisplay.textContent = formatDate(appState.currentDate);
+        };
+
+        const handleRoleChange = (e) => {
+            appState.currentRole = e.target.value;
+            appState.hasDraft = false;
+            renderUI();
+        };
+
+        const handleActionButtonClick = () => {
+            if (appState.currentRole === 'medico') {
+                if (appState.hasDraft) {
+                    appState.hasDraft = false;
+                    appState.pharmacologicalIndications.forEach(ind => {
+                        // Lógica clave para los nuevos estados
+                        if (ind.status === 'draft') {
+                             if (ind.schedulesButtons.length > 0) {
+                                // Si tiene horarios, pasa a estado 'active'
+                                ind.status = 'active';
+                             } else {
+                                // Si NO tiene horarios, pasa a estado 'pending-schedule'
+                                ind.status = 'pending-schedule';
+                             }
+                             ind.needsReview = false;
+                        }
+                    });
+                } else {
+                    appState.hasDraft = true;
+                }
+            }
+            renderUI();
+            saveState();
+        };
+
+        const handleScheduleClick = (e) => {
+            const button = e.target.closest('.schedule-button');
+            if (!button) return;
+
+            // Se revisa si el botón tiene la clase `non-clickable`
+            if (button.classList.contains('non-clickable')) {
+                console.log('El botón no es clickable, no se abre el modal.');
+                return;
+            }
+
+            if (scheduleModalButton === button) {
+                hideScheduleModal();
+                return;
+            }
+
+            const indicationId = parseInt(button.getAttribute('data-id'));
+            const schedule = button.getAttribute('data-schedule');
+
+            const formattedSchedule = formatScheduleTime(schedule);
+
+            const indication = appState.pharmacologicalIndications.find(ind => ind.id === indicationId);
+            const administeredData = indication.administered[schedule];
+
+            appState.selectedSchedule = {
+                indicationId,
+                schedule,
+                adminTime: formattedSchedule,
+                status: administeredData?.status,
+                reason: administeredData?.reason,
+                observations: administeredData?.observations || ''
+            };
+
+            scheduleModalButton = button;
+            showScheduleModal(button, 1);
+        };
+
+        /**
+         * Muestra el modal de administración centrado en el botón de horario.
+         * La lógica ha sido modificada para evitar el movimiento vertical al cambiar de paso.
+         * @param {HTMLElement} button El botón que activa el modal.
+         */
+        const showScheduleModal = (button, step) => {
+            // Reinicia el estado del modal
+            modalStep1.classList.add('hidden');
+            modalStep2.classList.add('hidden');
+            adminObservationsStep2.value = '';
+
+            // Muestra el paso correcto
+            if (step === 1) {
+                modalStep1.classList.remove('hidden');
+                modalScheduleTextStep1.textContent = `Horario programado: ${appState.selectedSchedule.schedule}`;
+                adminTimeInput.value = appState.selectedSchedule.adminTime;
+            } else if (step === 2) {
+                modalStep2.classList.remove('hidden');
+                // Lógica agregada para resaltar el botón de razón seleccionado al abrir el paso 2
+                const selectedReason = appState.selectedSchedule.reason;
+                document.querySelectorAll('.reason-button').forEach(btn => {
+                    btn.classList.remove('selected');
+                    btn.classList.remove('bg-blue-100', 'border-blue-300', 'font-semibold', 'text-blue-800');
+                    btn.classList.add('bg-gray-100', 'hover:bg-gray-200');
+                });
+                if (selectedReason) {
+                    const selectedButton = document.querySelector(`.reason-button[data-reason="${selectedReason}"]`);
+                    if (selectedButton) {
+                        selectedButton.classList.add('selected', 'bg-blue-100', 'border-blue-300', 'font-semibold', 'text-blue-800');
+                        selectedButton.classList.remove('bg-gray-100', 'hover:bg-gray-200');
+                    }
+                }
+            }
+
+            const rect = button.getBoundingClientRect();
+            // Se debe obtener el ancho del modal DESPUÉS de mostrar el paso, ya que el tamaño puede cambiar.
+            const modalWidth = scheduleModal.offsetWidth; 
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const gap = 10;
+            const arrowWidth = 16; // 8px de borde izquierdo + 8px de borde derecho
+
+            let topPosition, leftPosition;
+            
+            const isModalVisible = scheduleModal.classList.contains('visible');
+            if (isModalVisible) {
+                // Si el modal ya está visible, mantenemos su posición vertical actual
+                topPosition = parseFloat(scheduleModal.style.top) - window.scrollY;
+            } else {
+                // Si es la primera vez que se abre, calculamos la posición inicial.
+                topPosition = rect.bottom + gap;
+                // Forzamos el pop-up a crecer hacia abajo, como se solicitó.
+                if (topPosition + scheduleModal.offsetHeight > viewportHeight) {
+                    // Si el modal se sale de la pantalla por debajo, lo movemos hacia arriba.
+                    // Esto evita que se pierda la visibilidad, pero puede hacer que se mueva.
+                    // Consideraremos esto una excepción para mantener la visibilidad.
+                    topPosition = rect.top - scheduleModal.offsetHeight - gap;
+                }
+            }
+            
+            // La clase de posicionamiento se basa en el cálculo inicial. 
+            // Si el modal ya estaba visible, no cambiamos la clase.
+            const placementClass = topPosition > rect.top ? 'below' : 'above';
+
+            // Calcular la posición horizontal, centrando el pop-up en el botón
+            const buttonCenterX = rect.left + (rect.width / 2);
+            let finalLeftPosition = buttonCenterX - (modalWidth / 2);
+
+            // Ajustar la posición horizontal si se sale de la pantalla
+            if (finalLeftPosition + modalWidth > viewportWidth - gap) {
+                finalLeftPosition = viewportWidth - modalWidth - gap;
+            }
+            if (finalLeftPosition < gap) {
+                finalLeftPosition = gap;
+            }
+
+            // Aplicar las posiciones al pop-up
+            scheduleModal.classList.remove('above', 'below');
+            scheduleModal.classList.add(placementClass);
+            scheduleModal.style.top = `${topPosition + window.scrollY}px`;
+            scheduleModal.style.left = `${finalLeftPosition + window.scrollX}px`;
+
+            // Calcular la posición de la flecha basándose en la posición final y el ancho de la flecha
+            const arrowLeftPosition = (buttonCenterX - finalLeftPosition);
+            const centeredArrowPosition = arrowLeftPosition - (arrowWidth / 2);
+            const clampedArrowLeft = Math.max(8, Math.min(centeredArrowPosition, modalWidth - 24));
+            scheduleModal.style.setProperty('--arrow-left', `${clampedArrowLeft}px`);
+
+            scheduleModal.classList.add('visible');
+        };
+
+        const hideScheduleModal = () => {
+            scheduleModal.classList.remove('visible');
+            appState.selectedSchedule = null;
+            adminObservationsStep2.value = '';
+            scheduleModalButton = null;
+        };
+        
+        // Muestra el modal de confirmación de suspensión
+        const showConfirmSuspendModal = (indicationId) => {
+            appState.indicationToSuspend = indicationId;
+            confirmSuspendModal.classList.remove('hidden');
+        };
+
+        // Oculta el modal de confirmación de suspensión
+        const hideConfirmSuspendModal = () => {
+            appState.indicationToSuspend = null;
+            confirmSuspendModal.classList.add('hidden');
+        };
+
+        const handleModalSave = () => {
+            const indicationId = appState.selectedSchedule.indicationId;
+            const schedule = appState.selectedSchedule.schedule;
+            const status = appState.selectedSchedule.status;
+            const reason = appState.selectedSchedule.reason;
+            const observations = adminObservationsStep2.value;
+            const adminTime = appState.selectedSchedule.adminTime;
+
+            const indication = appState.pharmacologicalIndications.find(ind => ind.id === indicationId);
+            if (indication) {
+                if (!indication.administered) {
+                    indication.administered = {};
+                }
+                indication.administered[schedule] = { status, reason, observations, adminTime };
+            }
+
+            renderUI();
+            hideScheduleModal();
+            saveState();
+        };
+
+        const addNewIndication = () => {
+            const newId = appState.pharmacologicalIndications.length > 0
+                ? Math.max(...appState.pharmacologicalIndications.map(i => i.id)) + 1
+                : 1;
+
+            const newIndication = {
+                id: newId,
+                indication: '',
+                route: null,
+                schedules: '',
+                schedulesButtons: [],
+                status: 'draft',
+                administered: {},
+                needsReview: true
+            };
+
+            appState.pharmacologicalIndications.push(newIndication);
+            appState.hasDraft = true;
+            renderUI();
+            saveState();
+        };
+
+        const deleteIndication = (id) => {
+            const index = appState.pharmacologicalIndications.findIndex(ind => ind.id === id);
+            if (index !== -1) {
+                appState.pharmacologicalIndications.splice(index, 1);
+                appState.hasDraft = true;
+                renderUI();
+                saveState();
+            }
+        };
+
+        const processVerbalIndication = (id, status) => {
+            const index = appState.verbalIndications.findIndex(ind => ind.id === id);
+            if (index !== -1) {
+                const [indication] = appState.verbalIndications.splice(index, 1);
+                const now = new Date();
+                const processedTime = now.toTimeString().slice(0, 5);
+                const validatedBy = roles[appState.currentRole];
+
+                appState.processedVerbalIndications.push({
+                    ...indication,
+                    status,
+                    processedTime,
+                    validatedBy
+                });
+
+                renderUI();
+                saveState();
+            }
+        };
+
+        /**
+         * Muestra un tooltip centrado en el botón.
+         * @param {HTMLElement} button El botón que activa el tooltip.
+         * @param {string} text El texto del tooltip.
+         */
+        const showTooltip = (button, text) => {
+            tooltip.innerHTML = text;
+            tooltip.classList.add('visible');
+
+            const rect = button.getBoundingClientRect();
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const gap = 8;
+            const arrowWidth = 12;
+
+            // Determine if the tooltip should be above or below the button
+            let topPosition;
+            let placementClass;
+            if (rect.top - tooltipRect.height - gap < 0) {
+                topPosition = rect.bottom + gap;
+                placementClass = 'bottom';
+            } else {
+                topPosition = rect.top - tooltipRect.height - gap;
+                placementClass = 'top';
+            }
+
+            const buttonCenterX = rect.left + (rect.width / 2);
+            const leftPosition = buttonCenterX - (tooltipRect.width / 2);
+            let finalLeftPosition = leftPosition;
+
+            const viewportWidth = window.innerWidth;
+            if (leftPosition + tooltipRect.width > viewportWidth - gap) {
+                finalLeftPosition = viewportWidth - tooltipRect.width - gap;
+            } else if (leftPosition < gap) {
+                finalLeftPosition = gap;
+            }
+
+            tooltip.classList.remove('top', 'bottom');
+            tooltip.classList.add(placementClass);
+            tooltip.style.top = `${topPosition}px`;
+            tooltip.style.left = `${finalLeftPosition}px`;
+
+            const arrowLeftPosition = (buttonCenterX - finalLeftPosition) - (arrowWidth / 2);
+            const clampedArrowLeft = Math.max(0, Math.min(arrowLeftPosition, tooltipRect.width - arrowWidth));
+            tooltip.style.setProperty('--arrow-left', `${clampedArrowLeft}px`);
+        };
+
+        const hideTooltip = () => {
+            tooltip.classList.remove('visible');
+        };
+
+        const init = async () => {
+            try {
+                await initDB();
+                appState.generalIndications = {
+                    manejo: 'Hasta UTIM',
+                    reposo: 'Reposo relativo',
+                    regimen: 'Blando picado',
+                    controlIngesta: 'BCP',
+                    apoyoVentilatorio: 'O2 para Saturar 90-92%',
+                    balanceHidrico: '+500ml',
+                    hemoglucotest: 'c/6hrs',
+                    rehabilitacion: { knt: true, to: false, fo: true },
+                    alergias: 'Penicilina',
+                    aislamiento: '',
+                    cateteres: 'CVC yugular derecho',
+                    cup: 'No requiere'
+                };
+                appState.pharmacologicalIndications = [
+                    {
+                        id: 1,
+                        indication: 'Paracetamol 1g',
+                        route: 'VO',
+                        schedules: '8-16-20',
+                        schedulesButtons: ['08:00', '16:00', '20:00'],
+                        status: 'active',
+                        administered: { '08:00': { status: 'done', reason: null, observations: 'Administrado por enfermera', adminTime: '08:05' }, '16:00': { status: 'pending' }, '20:00': { status: 'pending' } },
+                        needsReview: false
+                    },
+                    {
+                        id: 2,
+                        indication: 'Omeprazol 40mg',
+                        route: 'VO',
+                        schedules: '8',
+                        schedulesButtons: ['08:00'],
+                        status: 'active',
+                        administered: { '08:00': { status: 'not-done', reason: 'Paciente en examen', observations: 'Salió a TAC de abdomen', adminTime: '08:00' } },
+                        needsReview: false
+                    },
+                    {
+                        id: 3,
+                        indication: 'Furosemida 40mg',
+                        route: 'EV',
+                        schedules: '10',
+                        schedulesButtons: ['10:00'],
+                        status: 'suspended',
+                        administered: { '10:00': { status: 'not-done', reason: 'Indicación suspendida', observations: 'Indicación suspendida por médico de turno', adminTime: '10:05' } },
+                        needsReview: false
+                    },
+                    {
+                        id: 4,
+                        indication: 'Tramadol 100mg',
+                        route: 'VO',
+                        schedules: '',
+                        schedulesButtons: [],
+                        status: 'draft',
+                        administered: {},
+                        needsReview: true
+                    },
+                    {
+                        id: 5,
+                        indication: 'Morfina 5mg',
+                        route: 'EV',
+                        schedules: '',
+                        schedulesButtons: [],
+                        status: 'pending-schedule', // Nuevo estado de ejemplo
+                        administered: {},
+                        needsReview: true
+                    }
+                ];
+                appState.verbalIndications = [
+                    { id: 1, indication: 'Metamizol 500mg EV PRN dolor', time: '14:30', nurse: 'Enfermera González' },
+                    { id: 2, indication: 'Tomografía axial computarizada de abdomen y pelvis con contraste', time: '16:00', nurse: 'Enfermera Rojas' },
+                    { id: 3, indication: 'Cambiar horarios de Omeprazol a 12 horas post administración', time: '17:15', nurse: 'Enfermera Díaz' }
+                ];
+
+                const loadedData = await loadData();
+                if (loadedData) {
+                    appState = loadedData;
+                }
+                
+                renderUI();
+                saveState();
+            } catch (error) {
+                console.error("Error initializing app:", error);
+                renderUI();
+            }
+        };
+
+        const saveState = () => {
+            saveData(appState);
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+
+            roleSelect.addEventListener('change', handleRoleChange);
+            actionButton.addEventListener('click', handleActionButtonClick);
+            addIndicationButton.addEventListener('click', addNewIndication);
+
+            window.addEventListener('resize', () => {
+                if (scheduleModal.classList.contains('visible')) {
+                    if (scheduleModalButton) {
+                        showScheduleModal(scheduleModalButton, modalStep1.classList.contains('hidden') ? 2 : 1);
+                    }
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                const button = e.target.closest('.schedule-button');
+                const clickedInsideModal = scheduleModal.contains(e.target);
+                const modalVisible = scheduleModal.classList.contains('visible');
+
+                if (button) {
+                    handleScheduleClick(e);
+                } else if (modalVisible && !clickedInsideModal) {
+                    hideScheduleModal();
+                }
+
+                // Nuevo: Manejador para el botón de suspender indicación
+                if (e.target.closest('.suspend-indication')) {
+                    const id = parseInt(e.target.closest('.suspend-indication').getAttribute('data-id'));
+                    showConfirmSuspendModal(id);
+                }
+                
+                // Nuevo: Manejador para el botón de eliminar indicación en borrador
+                if (e.target.closest('.delete-indication')) {
+                    const id = parseInt(e.target.closest('.delete-indication').getAttribute('data-id'));
+                    deleteIndication(id);
+                }
+
+                if (e.target.closest('.edit-schedules')) {
+                    const id = parseInt(e.target.closest('.edit-schedules').getAttribute('data-id'));
+                    const row = e.target.closest('tr');
+                    const scheduleInput = row.querySelector('.schedule-input');
+                    const scheduleButtons = row.querySelectorAll('.schedule-button');
+                    scheduleButtons.forEach(btn => btn.style.display = 'none');
+                    scheduleInput.style.display = 'inline-block';
+                    scheduleInput.focus();
+                }
+
+                if (e.target.closest('.validate-verbal')) {
+                    const id = parseInt(e.target.closest('.validate-verbal').getAttribute('data-id'));
+                    processVerbalIndication(id, 'validated');
+                }
+                if (e.target.closest('.reject-verbal')) {
+                    const id = parseInt(e.target.closest('.reject-verbal').getAttribute('data-id'));
+                    processVerbalIndication(id, 'rejected');
+                }
+            });
+            
+            // Nuevo: Manejadores para el modal de confirmación de suspensión
+            cancelSuspendButton.addEventListener('click', () => {
+                hideConfirmSuspendModal();
+            });
+
+            confirmSuspendButton.addEventListener('click', () => {
+                const idToSuspend = appState.indicationToSuspend;
+                if (idToSuspend !== null) {
+                    const indication = appState.pharmacologicalIndications.find(ind => ind.id === idToSuspend);
+                    if (indication) {
+                        indication.status = 'suspended';
+                        appState.hasDraft = true;
+                        renderUI();
+                        saveState();
+                    }
+                }
+                hideConfirmSuspendModal();
+            });
+
+
+            pharmaTableBody.addEventListener('mouseover', (e) => {
+                const button = e.target.closest('.schedule-button');
+                if (button) {
+                    const observations = button.getAttribute('data-observations');
+                    const reason = button.getAttribute('data-reason');
+                    const adminTime = button.getAttribute('data-admin-time');
+                    const status = button.getAttribute('data-status');
+                    if (observations || reason || adminTime) {
+                        let tooltipText = '';
+                        if (adminTime) {
+                            tooltipText += `${adminTime} - ${status}`;
+                        }
+                        if (reason) {
+                            if (tooltipText) tooltipText += '<br>';
+                            tooltipText += `Razón: ${reason}`;
+                        }
+                        if (observations) {
+                            if (tooltipText) tooltipText += '<br>';
+                            tooltipText += `Obs: ${observations}`;
+                        }
+                        showTooltip(button, tooltipText);
+                    }
+                }
+            });
+
+            pharmaTableBody.addEventListener('mouseout', (e) => {
+                const button = e.target.closest('.schedule-button');
+                if (button && tooltip.classList.contains('visible')) {
+                    hideTooltip();
+                }
+            });
+
+            document.addEventListener('change', (e) => {
+                const target = e.target;
+                const row = target.closest('tr') || target.closest('.pending-review-item');
+                if (!row) return;
+                
+                const id = parseInt(row.getAttribute('data-id'));
+                const indication = appState.pharmacologicalIndications.find(ind => ind.id === id);
+
+                if (indication) {
+                    if (target.matches('textarea[data-field="indication"]')) {
+                        indication.indication = target.value;
+                    } else if (target.matches('input[type="radio"][name^="route-"]')) {
+                        indication.route = target.value;
+                    }
+                    appState.hasDraft = true;
+                    saveState();
+                }
+            });
+
+            document.addEventListener('input', (e) => {
+                if (e.target.matches('textarea.indication-textarea')) {
+                    autoResizeTextarea(e.target);
+                }
+            });
+
+            document.addEventListener('blur', (e) => {
+                const isScheduleInput = e.target.matches('input[data-field="schedules"]');
+                const isEnfermeraRole = appState.currentRole === 'enfermera';
+                const isMedicoRole = appState.currentRole === 'medico' && appState.hasDraft;
+
+                if ((isScheduleInput && isEnfermeraRole) || (isScheduleInput && isMedicoRole)) {
+                    handleScheduleInputBlur(e.target);
+                }
+            }, true);
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const textareas = [...document.querySelectorAll('textarea.indication-textarea')];
+                    const activeElement = document.activeElement;
+                    const currentIndex = textareas.indexOf(activeElement);
+                    if (currentIndex > -1 && currentIndex < textareas.length - 1) {
+                        textareas[currentIndex + 1].focus();
+                    } else {
+                        activeElement.blur();
+                    }
+                }
+            });
+
+            generalForm.addEventListener('change', (e) => {
+                const target = e.target;
+                const key = target.getAttribute('data-key');
+                if (key === 'rehabilitacion') {
+                    const subKey = target.getAttribute('data-subkey');
+                    appState.generalIndications[key][subKey] = target.checked;
+                } else {
+                    appState.generalIndications[key] = target.value;
+                }
+                appState.hasDraft = true;
+                saveState();
+            });
+
+            adminDoneStep1Button.addEventListener('click', () => {
+                if (appState.selectedSchedule) {
+                    appState.selectedSchedule.status = 'done';
+                    appState.selectedSchedule.reason = null;
+                    handleModalSave();
+                }
+            });
+            adminNotDoneStep1Button.addEventListener('click', () => {
+                if (appState.selectedSchedule) {
+                    appState.selectedSchedule.status = 'not-done';
+                    showScheduleModal(scheduleModalButton, 2);
+                }
+            });
+
+            modalSaveStep2Button.addEventListener('click', () => {
+                if (appState.selectedSchedule) {
+                    appState.selectedSchedule.observations = adminObservationsStep2.value;
+                    handleModalSave();
+                }
+            });
+
+            // Se ha modificado esta sección para manejar el estado visual de los botones de razón.
+            document.querySelectorAll('.reason-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const clickedButton = e.target;
+                    // Deseleccionar todos los botones primero
+                    document.querySelectorAll('.reason-button').forEach(btn => {
+                        btn.classList.remove('selected', 'bg-blue-100', 'border-blue-300', 'font-semibold', 'text-blue-800');
+                        btn.classList.add('bg-gray-100', 'hover:bg-gray-200');
+                    });
+                    
+                    // Seleccionar el botón que se acaba de hacer clic
+                    clickedButton.classList.remove('bg-gray-100', 'hover:bg-gray-200');
+                    clickedButton.classList.add('selected', 'bg-blue-100', 'border-blue-300', 'font-semibold', 'text-blue-800');
+
+                    if (appState.selectedSchedule) {
+                        appState.selectedSchedule.reason = clickedButton.getAttribute('data-reason');
+                    }
+                });
+            });
+
+            adminTimeInput.addEventListener('change', (e) => {
+                if (appState.selectedSchedule) {
+                    appState.selectedSchedule.adminTime = e.target.value;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
