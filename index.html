@@ -638,6 +638,8 @@
                             `).join('')}
                         </div>
                     `;
+                    div.innerHTML = contentHTML;
+                    generalForm.appendChild(div);
                 } else {
                     contentHTML = `
                         <label class="block text-sm font-medium text-gray-700">${label}</label>
@@ -645,14 +647,14 @@
                     const textarea = document.createElement('textarea');
                     textarea.className = 'indication-textarea w-full border-0 focus:ring-0 focus:border-0 bg-transparent text-sm font-medium py-1 resize-none overflow-hidden disabled:bg-gray-50 disabled:text-gray-500';    
                     textarea.setAttribute('rows', '1');
-                    textarea.setAttribute('data-key',"${key}");
-                    textarea.setAttribute('${!canEdit ? 'disabled' : ''}');
+                    textarea.setAttribute('data-key', key);
+                    textarea.disabled = !canEdit;
                     textarea.value = value;
+                    div.innerHTML = contentHTML;
+                    div.appendChild(textarea);
+                    generalForm.appendChild(div);
+                    autoResizeTextarea(textarea);
                 }
-                div.innerHTML = contentHTML;
-                div.appendChild(div)
-                generalForm.appendChild(div);
-                autoResizeTextarea(textarea);
             }
         };
 
@@ -1657,7 +1659,6 @@
     </script>
 </body>
 </html>
-
 
 
 
