@@ -345,9 +345,29 @@
         </div>
     </div>
 
-
     <!-- Tooltip para las observaciones (nuevo) -->
     <div id="tooltip" role="tooltip"></div>
+    
+    <!-- Modal para agregar múltiples indicaciones -->
+    <div id="bulk-modal" class="fixed inset-0 z-30 hidden">
+      <div class="absolute inset-0 bg-black/40"></div>
+      <div class="relative mx-auto my-10 bg-white rounded-lg shadow-lg p-4 w-11/12 max-w-2xl">
+        <h3 class="text-base font-semibold text-gray-900">Agregar múltiples indicaciones</h3>
+        <p class="text-xs text-gray-500 mt-1">Escribe cada indicación en una nueva línea.</p>
+        <textarea id="bulk-textarea" class="mt-3 w-full h-56 border border-gray-300 rounded-md p-2 focus:outline-none focus:ring focus:ring-blue-200" placeholder="Ejemplo:
+Paracetamol 1g
+Omeprazol 40mg
+Furosemida 40mg"></textarea>
+        <div class="mt-2 text-xs text-gray-600">Líneas válidas: <span id="bulk-count">0</span></div>
+        <div class="mt-4 flex justify-end gap-2">
+          <button id="bulk-cancel" class="px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-50">Cancelar</button>
+          <button id="bulk-add" class="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700">Agregar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contenedor de toasts -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-40 space-y-2 pointer-events-none"></div>
 
     <script>
         // Gestión de datos y estado de la aplicación
@@ -393,6 +413,16 @@
         const currentDateDisplay = document.getElementById('current-date-display');
         const prevDayButton = document.getElementById('prev-day');
         const nextDayButton = document.getElementById('next-day');
+        
+        const addMultipleToggle = document.getElementById('add-multiple-toggle');
+        const addMultipleMenu = document.getElementById('add-multiple-menu');
+        const openBulkModalBtn = document.getElementById('open-bulk-modal');
+        const bulkModal = document.getElementById('bulk-modal');
+        const bulkTextarea = document.getElementById('bulk-textarea');
+        const bulkCount = document.getElementById('bulk-count');
+        const bulkCancel = document.getElementById('bulk-cancel');
+        const bulkAdd = document.getElementById('bulk-add');
+        const toastContainer = document.getElementById('toast-container');
 
         const scheduleModal = document.getElementById('schedule-modal');
         const modalStep1 = document.getElementById('step-1');
@@ -1015,34 +1045,35 @@
             }
         };
 
-        const updateHeaderUI = () => {
-            const role = appState.currentRole;
-            const hasDraft = appState.hasDraft;
+    const updateHeaderUI = () => {
+        const role = appState.currentRole;
+        const hasDraft = appState.hasDraft;
 
-            if (role === 'medico') {
-                actionButton.classList.remove('hidden');
-                if (hasDraft) {
-                    actionButton.textContent = 'Autorizar';
-                    actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                    actionButton.classList.add('bg-green-600', 'hover:bg-green-700');
-                    // Mostrar el botón de agregar
-                    addIndicationButton.classList.remove('hidden');
-                } else {
-                    actionButton.textContent = 'Editar';
-                    actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
-                    actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                    // Ocultar el botón de agregar si no es médico
-                    addIndicationButton.classList.add('hidden');
-                }
+        if (role === 'medico') {
+            actionButton.classList.remove('hidden');
+            if (hasDraft) {
+                actionButton.textContent = 'Autorizar';
+                actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                actionButton.classList.add('bg-green-600', 'hover:bg-green-700');
+                // Mostrar el botón de agregar
+                addIndicationButton.classList.remove('hidden');
+                    addMultipleToggle.classList.remove('hidden');
             } else {
-                actionButton.classList.add('hidden');
-                // Ocultar el botón de agregar si no es médico
+                actionButton.textContent = 'Editar';
+                actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+                actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
                 addIndicationButton.classList.add('hidden');
+                addMultipleToggle.classList.add('hidden');
             }
-            
-            draftBanner.classList.toggle('hidden', !hasDraft);
-            currentDateDisplay.textContent = formatDate(appState.currentDate);
-        };
+        } else {
+            actionButton.classList.add('hidden');
+            // Ocultar el botón de agregar si no es médico
+            addIndicationButton.classList.add('hidden');
+                addMultipleToggle.classList.add('hidden');
+        }
+        draftBanner.classList.toggle('hidden', !hasDraft);
+        currentDateDisplay.textContent = formatDate(appState.currentDate);
+    };
 
         const handleRoleChange = (e) => {
             appState.currentRole = e.target.value;
@@ -1655,10 +1686,105 @@
                     appState.selectedSchedule.adminTime = e.target.value;
                 }
             });
+
+                        // Toggle dropdown menu
+            addMultipleToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isHidden = addMultipleMenu.classList.contains('hidden');
+                addMultipleMenu.classList.toggle('hidden', !isHidden ? true : false);
+                addMultipleToggle.setAttribute('aria-expanded', (!isHidden).toString());
+            });
+
+            // Click outside to close the menu
+            document.addEventListener('click', (e) => {
+                if (!addMultipleMenu.classList.contains('hidden')) {
+                    if (!e.target.closest('#add-multiple-container')) {
+                        addMultipleMenu.classList.add('hidden');
+                        addMultipleToggle.setAttribute('aria-expanded', 'false');
+                    }
+                }
+            });
+
+            // Open modal from menu
+            openBulkModalBtn.addEventListener('click', () => {
+                addMultipleMenu.classList.add('hidden');
+                bulkTextarea.value = '';
+                bulkCount.textContent = '0';
+                bulkModal.classList.remove('hidden');
+            });
+
+            // Close modal
+            const hideBulkModal = () => {
+                bulkModal.classList.add('hidden');
+                bulkTextarea.value = '';
+                bulkCount.textContent = '0';
+            };
+            bulkCancel.addEventListener('click', hideBulkModal);
+            bulkModal.addEventListener('click', (e) => {
+                if (e.target === bulkModal) hideBulkModal();
+            });
+
+            // Live counter
+            const computeValidLines = (text) => {
+                return text.split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0);
+            };
+            bulkTextarea.addEventListener('input', () => {
+                const lines = computeValidLines(bulkTextarea.value);
+                bulkCount.textContent = String(lines.length);
+            });
+
+            // Add multiple indications
+            bulkAdd.addEventListener('click', () => {
+                const lines = computeValidLines(bulkTextarea.value);
+                if (lines.length === 0) {
+                    hideBulkModal();
+                    return;
+                }
+                // Solo Médico en modo edición
+                if (!(appState.currentRole === 'medico' && appState.hasDraft)) {
+                    hideBulkModal();
+                    return;
+                }
+                // Determinar ID inicial
+                const currentMaxId = appState.pharmacologicalIndications.length > 0
+                    ? Math.max(...appState.pharmacologicalIndications.map(i => i.id))
+                    : 0;
+                let nextId = currentMaxId + 1;
+
+                const newItems = lines.map(text => ({
+                    id: nextId++,
+                    indication: text,
+                    route: null,
+                    schedules: '',
+                    schedulesButtons: [],
+                    status: 'draft',
+                    administered: {},
+                    needsReview: true
+                }));
+
+                // Agregar al final, manteniendo el orden
+                appState.pharmacologicalIndications = appState.pharmacologicalIndications.concat(newItems);
+                // Mantener modo edición; NO persistir aquí (solo al autorizar)
+
+                renderUI();
+
+                // Toast
+                const toast = document.createElement('div');
+                toast.className = 'pointer-events-auto bg-gray-900 text-white text-sm rounded-md shadow px-3 py-2';
+                toast.textContent = `Se agregaron ${newItems.length} indicaciones`;
+                toastContainer.appendChild(toast);
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'transition', 'duration-300');
+                    setTimeout(() => toast.remove(), 300);
+                }, 2500);
+
+                hideBulkModal();
+            });
         });
     </script>
 </body>
 </html>
+
 
 
 
