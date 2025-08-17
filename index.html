@@ -1743,6 +1743,14 @@ Furosemida 40mg"></textarea>
                 const lines = computeValidLines(bulkTextarea.value);
                 bulkCount.textContent = String(lines.length);
             });
+            // Permitir Enter como salto de línea en el textarea
+            bulkTextarea.addEventListener('keydown', (e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                     // comportamiento normal: insertar salto de línea
+                     return; 
+                }
+            });
+
 
             // Add multiple indications
             bulkAdd.addEventListener('click', () => {
@@ -1795,6 +1803,7 @@ Furosemida 40mg"></textarea>
     </script>
 </body>
 </html>
+
 
 
 
