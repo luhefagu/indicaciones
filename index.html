@@ -1646,7 +1646,8 @@ Furosemida 40mg"></textarea>
         const value = activeElement.value;
 
         activeElement.value = value.substring(0, start) + "\n" + value.substring(end);
-        activeElement.selectionStart = bulkTextarea.selectionEnd = start + 1;
+        activeElement.selectionStart = activeElement.selectionEnd = start + 1;
+        autoResizeTextarea(activeElement);
     }
 
             });
@@ -1808,6 +1809,7 @@ Furosemida 40mg"></textarea>
     </script>
 </body>
 </html>
+
 
 
 
