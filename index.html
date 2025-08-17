@@ -1407,7 +1407,7 @@ Furosemida 40mg"></textarea>
                 appState.pharmacologicalIndications = [
                     {
                         id: 1,
-                        indication: 'Paracetamol 1g',
+                        indication: 'Paracetamol 1g cada 8 hrs',
                         route: 'VO',
                         schedules: '8-16-20',
                         schedulesButtons: ['08:00', '16:00', '20:00'],
@@ -1417,7 +1417,7 @@ Furosemida 40mg"></textarea>
                     },
                     {
                         id: 2,
-                        indication: 'Omeprazol 40mg',
+                        indication: 'Omeprazol 40mg al día',
                         route: 'VO',
                         schedules: '8',
                         schedulesButtons: ['08:00'],
@@ -1427,7 +1427,7 @@ Furosemida 40mg"></textarea>
                     },
                     {
                         id: 3,
-                        indication: 'Furosemida 40mg',
+                        indication: 'Furosemida 40mg al día',
                         route: 'EV',
                         schedules: '10',
                         schedulesButtons: ['10:00'],
@@ -1437,7 +1437,7 @@ Furosemida 40mg"></textarea>
                     },
                     {
                         id: 4,
-                        indication: 'Tramadol 100mg',
+                        indication: 'Tramadol 100mg cada 12 hrs',
                         route: 'VO',
                         schedules: '',
                         schedulesButtons: [],
@@ -1447,7 +1447,7 @@ Furosemida 40mg"></textarea>
                     },
                     {
                         id: 5,
-                        indication: 'Morfina 5mg',
+                        indication: 'Morfina 5mg cada 6 hrs',
                         route: 'EV',
                         schedules: '',
                         schedulesButtons: [],
@@ -1637,19 +1637,18 @@ Furosemida 40mg"></textarea>
                     }
                 }
                 // Control + Enter para insertar salto de línea en el textarea
-    if (e.key === "Enter" && e.ctrlKey) {
-        // Insertar salto de línea en la posición actual del cursor
-        e.preventDefault(); // evita que se cierre el modal o dispare otras acciones
-        const activeElement = document.activeElement;
-        const start = activeElement.selectionStart;
-        const end = activeElement.selectionEnd;
-        const value = activeElement.value;
-
-        activeElement.value = value.substring(0, start) + "\n" + value.substring(end);
-        activeElement.selectionStart = activeElement.selectionEnd = start + 1;
-        autoResizeTextarea(activeElement);
-    }
-
+                if (e.key === "Enter" && e.ctrlKey) {
+                    // Insertar salto de línea en la posición actual del cursor
+                    e.preventDefault(); // evita que se cierre el modal o dispare otras acciones
+                    const activeElement = document.activeElement;
+                    const start = activeElement.selectionStart;
+                    const end = activeElement.selectionEnd;
+                    const value = activeElement.value;
+            
+                    activeElement.value = value.substring(0, start) + "\n" + value.substring(end);
+                    activeElement.selectionStart = activeElement.selectionEnd = start + 1;
+                    autoResizeTextarea(activeElement);
+                }
             });
 
             generalForm.addEventListener('change', (e) => {
@@ -1712,7 +1711,7 @@ Furosemida 40mg"></textarea>
                 }
             });
 
-                        // Toggle dropdown menu
+            // Toggle dropdown menu
             addMultipleToggle.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const isHidden = addMultipleMenu.classList.contains('hidden');
@@ -1809,13 +1808,3 @@ Furosemida 40mg"></textarea>
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
