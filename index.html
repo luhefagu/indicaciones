@@ -238,33 +238,28 @@
                         <table class="w-full">
   <thead id="pharma-table-head"></thead>
   <tbody id="pharmacological-indications-table" class="divide-y divide-gray-200"></tbody>
-  <tfoot>
-    <tr>
-      <td colspan="5" class="px-3 py-3 text-center">
-        <div class="flex items-center justify-center gap-2 mt-2">
-          <!-- Botón principal Agregar -->
-          <button id="add-new-indication" class="flex items-center gap-2 px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-md hidden">
-            <!-- Icono Plus -->
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                                    <span class="text-sm">Agregar</span>
-          </button>
-          <!-- Botón flecha y menú para "Agregar múltiples" -->
-          <div id="add-multiple-container" class="relative inline-block">
-            <button id="add-multiple-toggle" class="px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-md hidden" aria-haspopup="true" aria-expanded="false" title="Más opciones">
-              <!-- Icono Chevron Down -->
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="lucide lucide-chevron-down" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                      <path d="m6 9 6 6 6-6"/>
-                                    </svg>
-            </button>
-            <div id="add-multiple-menu" class="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 hidden">
-              <button id="open-bulk-modal" class="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm">Agregar múltiples</button>
-            </div>
-          </div>
-        </div>
-      </td>
-    </tr>
-  </tfoot>
-</table>
+  </table>
+                        <!-- Footer de botones -->
+<div class="flex items-center justify-center gap-2 mt-3">
+  <!-- Botón principal Agregar -->
+  <button id="add-new-indication" class="flex items-center gap-2 px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-md hidden">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+    <span class="text-sm">Agregar</span>
+  </button>
+
+  <!-- Botón flecha y menú para "Agregar múltiples" -->
+  <div id="add-multiple-container" class="relative inline-block">
+    <button id="add-multiple-toggle" class="px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-md hidden" aria-haspopup="true" aria-expanded="false" title="Más opciones">
+      <svg xmlns="http://www.w3.org/2000/svg" class="lucide lucide-chevron-down" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m6 9 6 6 6-6"/>
+      </svg>
+    </button>
+    <div id="add-multiple-menu" class="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20 hidden">
+      <button id="open-bulk-modal" class="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm">Agregar múltiples</button>
+    </div>
+  </div>
+</div>
+
 
                     </div>
                 </section>
@@ -1814,5 +1809,6 @@ Furosemida 40mg"></textarea>
     </script>
 </body>
 </html>
+
 
 
