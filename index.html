@@ -904,7 +904,7 @@ Furosemida 40mg"></textarea>
 
                 pharmaTableBody.appendChild(row);
 
-                if (canEdit) {
+                if (isMedicoAndDraft) {
     const ghostRow = document.createElement('tr');
     ghostRow.className = 'text-sm';
     ghostRow.innerHTML = `
@@ -937,7 +937,6 @@ Furosemida 40mg"></textarea>
             
             // Vuelve a crear la instancia de Sortable.js, unida al nuevo DOM.
             if (isMedicoAndDraft) {
-                console.log('Sortable.js inicializado');
                 sortableInstance = Sortable.create(pharmaTableBody, {
                     handle: '.drag-handle',
                     ghostClass: 'sortable-ghost',
@@ -1834,6 +1833,7 @@ Furosemida 40mg"></textarea>
     </script>
 </body>
 </html>
+
 
 
 
