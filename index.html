@@ -904,6 +904,29 @@ Furosemida 40mg"></textarea>
 
                 pharmaTableBody.appendChild(row);
 
+                if (canEdit) {
+    const ghostRow = document.createElement('tr');
+    ghostRow.className = 'text-sm';
+    ghostRow.innerHTML = `
+        <td class="px-3 py-2 text-gray-400">–</td>
+        <td class="px-3 py-2">
+            <textarea id="ghost-textarea" class="w-full border border-gray-300 rounded p-1" placeholder="Nueva indicación..."></textarea>
+        </td>
+        <td class="px-3 py-2"></td>
+        <td class="px-3 py-2"></td>
+        <td class="px-3 py-2 text-gray-400">–</td>`;
+    pharmaTableBody.appendChild(ghostRow);
+
+    // Listener: cuando escriba algo en la fantasma → convertirla en real
+    const ghostTextarea = ghostRow.querySelector('#ghost-textarea');
+    ghostTextarea.addEventListener('input', (e) => {
+        if (e.target.value.trim().length > 0) {
+            addNewIndication(); // crea la real en appState
+            renderUI(); // vuelve a pintar (con nueva fila fantasma)
+        }
+    });
+}
+
                 if (isMedicoAndDraft) {
                     const textarea = row.querySelector('.indication-textarea');
                     if (textarea) {
@@ -1811,6 +1834,7 @@ Furosemida 40mg"></textarea>
     </script>
 </body>
 </html>
+
 
 
 
