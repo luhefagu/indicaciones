@@ -905,6 +905,14 @@ Furosemida 40mg"></textarea>
                 pharmaTableBody.appendChild(row);
 
                 if (isMedicoAndDraft) {
+                    const textarea = row.querySelector('.indication-textarea');
+                    if (textarea) {
+                        autoResizeTextarea(textarea);
+                    }
+                }
+            });
+
+            if (isMedicoAndDraft) {
     const ghostRow = document.createElement('tr');
     ghostRow.className = 'text-sm';
     ghostRow.innerHTML = `
@@ -926,15 +934,6 @@ Furosemida 40mg"></textarea>
         }
     });
 }
-
-                if (isMedicoAndDraft) {
-                    const textarea = row.querySelector('.indication-textarea');
-                    if (textarea) {
-                        autoResizeTextarea(textarea);
-                    }
-                }
-            });
-            
             // Vuelve a crear la instancia de Sortable.js, unida al nuevo DOM.
             if (isMedicoAndDraft) {
                 sortableInstance = Sortable.create(pharmaTableBody, {
@@ -1833,6 +1832,7 @@ Furosemida 40mg"></textarea>
     </script>
 </body>
 </html>
+
 
 
 
