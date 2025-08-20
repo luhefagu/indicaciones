@@ -1512,7 +1512,11 @@ Furosemida 40mg al día"></textarea>
             addIndicationButton.addEventListener('click', addNewIndication);
 
             window.addEventListener('resize', () => {
-                if (scheduleModal.classList.contains('visible')) {
+                const textareas = [...document.querySelectorAll('textarea.indication-textarea')];
+				textareas.forEach(indicationTextarea => {
+					autoResizeTextarea(indicationTextarea)
+				});
+				if (scheduleModal.classList.contains('visible')) {
                     if (scheduleModalButton) {
                         showScheduleModal(scheduleModalButton, modalStep1.classList.contains('hidden') ? 2 : 1);
                     }
@@ -1864,3 +1868,4 @@ Furosemida 40mg al día"></textarea>
     </script>
 </body>
 </html>
+
