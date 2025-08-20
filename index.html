@@ -417,6 +417,7 @@ Furosemida 40mg"></textarea>
         const generalForm = document.getElementById('general-indications-form');
         const pharmaTableHead = document.getElementById('pharma-table-head');
         const pharmaTableBody = document.getElementById('pharmacological-indications-table');
+        const ghostTextarea = document.getElementById('ghost-textarea');
         const addIndicationButton = document.getElementById('add-new-indication');
         const pendingReviewSection = document.getElementById('pending-review-section');
         const pendingReviewList = document.getElementById('pending-review-list');
@@ -925,16 +926,8 @@ Furosemida 40mg"></textarea>
                     <td class="px-3 py-2"></td>
                     <td class="px-3 py-2 text-gray-400">–</td>`;
                 pharmaTableBody.appendChild(ghostRow);
-            
-                // Listener: cuando escriba algo en la fantasma → convertirla en real
-                const ghostTextarea = ghostRow.querySelector('#ghost-textarea');
-                ghostTextarea.addEventListener('input', (e) => {
-                    if (e.target.value.trim().length > 0) {
-                        addNewIndication(); // crea la real en appState
-                        renderUI(); // vuelve a renderizar (con nueva fila fantasma)
-                    }
-                });
             }
+            
             // Vuelve a crear la instancia de Sortable.js, unida al nuevo DOM.
             if (isMedicoAndDraft) {
                 sortableInstance = Sortable.create(pharmaTableBody, {
@@ -1639,6 +1632,57 @@ Furosemida 40mg"></textarea>
                 }
             });
 
+            ghostTextarea.addEventListener('input', (e) => {
+                const text = e.target.value;
+            
+                // Si el texto está vacío, no hacemos nada
+                if (text.trim().length === 0) {
+                    return;
+                }
+            
+                // Obtenemos el ID máximo actual
+                const currentMaxId = appState.pharmacologicalIndications.length > 0
+                    ? Math.max(...appState.pharmacologicalIndications.map(i => i.id))
+                    : 0;
+            
+                // Creamos un nuevo objeto de indicación con el ID y el texto
+                const newId = currentMaxId + 1;
+                const newIndication = {
+                    id: newId,
+                    indication: text,
+                    route: null,
+                    schedules: '',
+                    schedulesButtons: [],
+                    status: 'draft',
+                    administered: {},
+                    needsReview: true
+                };
+                
+                // Agregamos el nuevo objeto al estado de la aplicación
+                appState.pharmacologicalIndications.push(newIndication);
+            
+                // Volvemos a renderizar la UI para que el nuevo elemento aparezca en el DOM
+                renderUI();
+            
+                // Obtenemos el nuevo elemento de la lista y su textarea
+                const newIndicationItem = document.querySelector(`.indication-item[data-id="${newId}"]`);
+                if (newIndicationItem) {
+                    const newTextarea = newIndicationItem.querySelector('[data-field="indication"]');
+                    
+                    // Transferimos el foco al nuevo textarea
+                    newTextarea.focus();
+                    
+                    // Posicionamos el cursor al final del texto
+                    newTextarea.selectionStart = newTextarea.selectionEnd = newTextarea.value.length;
+                    
+                    // Hacemos scroll para que el nuevo elemento sea visible
+                    newIndicationItem.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }
+            
+                // Vaciamos el ghost-textarea para el próximo uso
+                ghostTextarea.value = '';
+            });
+
             document.addEventListener('blur', (e) => {
                 const isScheduleInput = e.target.matches('input[data-field="schedules"]');
                 const isEnfermeraRole = appState.currentRole === 'enfermera';
@@ -1833,3 +1877,4 @@ Furosemida 40mg"></textarea>
     </script>
 </body>
 </html>
+
