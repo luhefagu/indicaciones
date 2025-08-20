@@ -417,7 +417,7 @@ Furosemida 40mg"></textarea>
         const generalForm = document.getElementById('general-indications-form');
         const pharmaTableHead = document.getElementById('pharma-table-head');
         const pharmaTableBody = document.getElementById('pharmacological-indications-table');
-        const ghostTextarea = document.getElementById('ghost-textarea');
+
         const addIndicationButton = document.getElementById('add-new-indication');
         const pendingReviewSection = document.getElementById('pending-review-section');
         const pendingReviewList = document.getElementById('pending-review-list');
@@ -1632,6 +1632,7 @@ Furosemida 40mg"></textarea>
                 }
             });
 
+            const ghostTextarea = document.getElementById('ghost-textarea');
             ghostTextarea.addEventListener('input', (e) => {
                 const text = e.target.value;
             
@@ -1877,4 +1878,5 @@ Furosemida 40mg"></textarea>
     </script>
 </body>
 </html>
+
 
