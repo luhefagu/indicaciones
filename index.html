@@ -239,11 +239,21 @@
 							<thead id="pharma-table-head"></thead>
 							<tbody id="pharmacological-indications-table" class="divide-y divide-gray-200"></tbody>
 						</table>
-						<!-- Footer de botones -->
+						<!-- Footer -->
 						<div id="pharma-footer" class="">
 							<!-- Tabla de Footer -->
 							<table class="w-full">
-								<tbody id="pharma-footer-table" class="border-t border-b border-gray-200"></tbody>
+								<tbody id="pharma-footer-table" class="border-t border-b border-gray-200">
+									<tr id="ghost-row" class="text-sm"> 
+					                    <td class="px-3 py-1.5 w-8 text-gray-400">–</td>
+					                    <td class="px-2 py-1.5">
+					                        <textarea id="ghost-textarea" class="w-full border-0 focus:ring-0 focus:border-0 bg-transparent text-sm font-medium py-1 resize-none overflow-hidden" rows = "1" placeholder="Nueva indicación..."></textarea>
+					                    </td>
+					                    <td class="px-2 py-1.5"></td>
+					                    <td class="px-2 py-1.5 w-60"></td>
+					                    <td class="px-2 py-1.5 w-8 text-gray-400">–</td>
+									</tr>
+								</tbody>
 							</table>
 							<div id="boton-footer" class="flex items-center justify-start pl-3 gap-2 mb-3">
 								<!-- Botón principal Agregar -->
@@ -435,6 +445,8 @@ Furosemida 40mg al día"></textarea>
         
 		const pharmaFooter = document.getElementById('pharma-footer');
 		const pharmaFooterTable = document.getElementById('pharma-footer-table');
+		const ghostRow = document.getElementById('ghost-row');
+		const ghostTextarea = document.getElementById('ghost-textarea');
 		const addMultipleToggle = document.getElementById('add-multiple-toggle');
         const addMultipleMenu = document.getElementById('add-multiple-menu');
         const openBulkModalBtn = document.getElementById('open-bulk-modal');
@@ -963,74 +975,6 @@ Furosemida 40mg al día"></textarea>
                     }
                 });
             }
-
-            // Crea fila fantasma
-            if (isMedicoAndDraft) {
-                const ghostRow = document.createElement('tr');
-                ghostRow.className = 'text-sm';
-                ghostRow.setAttribute('data-status', 'active');
-
-                ghostRow.innerHTML = `
-                    <td class="px-3 py-1.5 w-8 text-gray-400">–</td>
-                    <td class="px-2 py-1.5">
-                        <textarea id="ghost-textarea" class="w-full border-0 focus:ring-0 focus:border-0 bg-transparent text-sm font-medium py-1 resize-none overflow-hidden" rows = "1" placeholder="Nueva indicación..."></textarea>
-                    </td>
-                    <td class="px-2 py-1.5"></td>
-                    <td class="px-2 py-1.5"></td>
-                    <td class="px-2 py-1.5 w-8 text-gray-400">–</td>`;
-				pharmaFooterTable.innerHTML = '';
-                pharmaFooterTable.appendChild(ghostRow);
-
-                const ghostTextarea = ghostRow.querySelector('#ghost-textarea');
-                ghostTextarea.addEventListener('input', (e) => {
-                    const text = e.target.value;
-                
-                    // Si el texto está vacío, no hacemos nada
-                    if (text.trim().length === 0) {
-                        return;
-                    }
-                
-                    // Obtenemos el ID máximo actual
-                    const currentMaxId = appState.pharmacologicalIndications.length > 0
-                        ? Math.max(...appState.pharmacologicalIndications.map(i => i.id))
-                        : 0;
-                
-                    // Creamos un nuevo objeto de indicación con el ID y el texto
-                    const newId = currentMaxId + 1;
-                    const newIndication = {
-                        id: newId,
-                        indication: text,
-                        route: null,
-                        schedules: '',
-                        schedulesButtons: [],
-                        status: 'draft',
-                        administered: {},
-                        needsReview: true
-                    };
-                    
-                    // Agregamos el nuevo objeto al estado de la aplicación
-                    appState.pharmacologicalIndications.push(newIndication);
-                
-                    // Volvemos a renderizar la UI para que el nuevo elemento aparezca en el DOM
-                    renderUI();
-                
-                    // Obtenemos el nuevo elemento de la lista y su textarea
-                    const textareas = [...document.querySelectorAll('textarea.indication-textarea')];
-                    newTextarea = textareas[textareas.length - 1]
-                    if (newTextarea) {                       
-                        // Transferimos el foco al nuevo textarea
-                        newTextarea.focus();
-                        
-                        // Posicionamos el cursor al final del texto
-                        newTextarea.selectionStart = newTextarea.selectionEnd = newTextarea.value.length;
-                    }
-                
-                    // Vaciamos el ghost-textarea para el próximo uso
-                    ghostTextarea.value = '';
-                });
-
-            }
-
         };
 
         const renderPendingReviewSection = () => {
@@ -1671,6 +1615,33 @@ Furosemida 40mg al día"></textarea>
                 }
             });
 
+			ghostTextarea.addEventListener('input', (e) => {
+				const text = e.target.value;
+			
+				// Si el texto está vacío, no hacemos nada
+				if (text.trim().length === 0) {
+					return;
+				}
+
+				// Creamos una nueva indicación
+				addNewIndication ();
+				
+				// Obtenemos el nuevo elemento de la lista y su textarea
+				const textareas = [...document.querySelectorAll('textarea.indication-textarea')];
+				newTextarea = textareas[textareas.length - 1]
+				if (newTextarea) {
+					// Le asignamos el valor del ghostTextarea
+					newTextarea.value = text
+					// Transferimos el foco al nuevo textarea
+					newTextarea.focus();
+					// Posicionamos el cursor al final del texto
+					newTextarea.selectionStart = newTextarea.selectionEnd = newTextarea.value.length;
+				}
+			
+				// Vaciamos el ghost-textarea para el próximo uso
+				ghostTextarea.value = '';
+			});
+			
             document.addEventListener('change', (e) => {
                 const target = e.target;
                 const row = target.closest('tr') || target.closest('.pending-review-item');
@@ -1690,12 +1661,14 @@ Furosemida 40mg al día"></textarea>
                 }
             });
 
+			// Redimensiona automáticamente los textarea al ingresar nuevo caracter
             document.addEventListener('input', (e) => {
                 if (e.target.matches('textarea.indication-textarea')) {
                     autoResizeTextarea(e.target);
                 }
             });
 
+			// Crea botones de horario al desenfocar textarea de horario
             document.addEventListener('blur', (e) => {
                 const isScheduleInput = e.target.matches('input[data-field="schedules"]');
                 const isEnfermeraRole = appState.currentRole === 'enfermera';
@@ -1706,6 +1679,7 @@ Furosemida 40mg al día"></textarea>
                 }
             }, true);
 
+			// Atajos de teclado
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.ctrlKey && document.activeElement !== bulkTextarea) {
                     e.preventDefault();
@@ -1715,8 +1689,7 @@ Furosemida 40mg al día"></textarea>
                     if (currentIndex > -1 && currentIndex < textareas.length - 1) {
                         textareas[currentIndex + 1].focus();
                     } else {
-			const ghostTextarea = document.querySelector('textarea#ghost-textarea');
-			ghostTextarea.focus();
+						ghostTextarea.focus();
                     }
                 }
                 // Control + Enter para insertar salto de línea en el textarea
@@ -1891,11 +1864,3 @@ Furosemida 40mg al día"></textarea>
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
