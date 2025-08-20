@@ -912,6 +912,7 @@ Furosemida 40mg"></textarea>
                 }
             });
 
+            // Crea fila fantasma
             if (isMedicoAndDraft) {
                 const ghostRow = document.createElement('tr');
                 ghostRow.className = 'text-sm';
@@ -930,7 +931,7 @@ Furosemida 40mg"></textarea>
                 ghostTextarea.addEventListener('input', (e) => {
                     if (e.target.value.trim().length > 0) {
                         addNewIndication(); // crea la real en appState
-                        renderUI(); // vuelve a pintar (con nueva fila fantasma)
+                        renderUI(); // vuelve a renderizar (con nueva fila fantasma)
                     }
                 });
             }
@@ -1832,15 +1833,3 @@ Furosemida 40mg"></textarea>
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
