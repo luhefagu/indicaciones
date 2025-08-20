@@ -240,7 +240,12 @@
   <tbody id="pharmacological-indications-table" class="divide-y divide-gray-200"></tbody>
   </table>
                         <!-- Footer de botones -->
-<div class="flex items-center justify-start pl-3 gap-2 mt-3">
+<div id="pharma-footer" class="pl-1">
+  <!-- Tabla de Footer -->
+  <table class="w-full">
+  <tbody id="pharma-footer-table" class="divide-y divide-gray-200"></tbody>
+  </table>
+<div id="boton-footer" class="flex items-center justify-start pl-3 gap-2 mb-3">
   <!-- Botón principal Agregar -->
   <button id="add-new-indication" class="flex items-center gap-2 px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-md hidden">
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
@@ -260,6 +265,7 @@
   <button id="open-bulk-modal" class="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm">Agregar múltiples</button>
 </div>
   </div>
+</div>
 </div>
 
 
@@ -429,7 +435,9 @@ Furosemida 40mg"></textarea>
         const prevDayButton = document.getElementById('prev-day');
         const nextDayButton = document.getElementById('next-day');
         
-        const addMultipleToggle = document.getElementById('add-multiple-toggle');
+	const pharmaFooter = document.getElementById('pharma-footer');
+	const pharmaFooterTable = document.getElementById('pharma-footer-table');
+	const addMultipleToggle = document.getElementById('add-multiple-toggle');
         const addMultipleMenu = document.getElementById('add-multiple-menu');
         const openBulkModalBtn = document.getElementById('open-bulk-modal');
         const bulkModal = document.getElementById('bulk-modal');
@@ -913,72 +921,6 @@ Furosemida 40mg"></textarea>
                 }
             });
 
-            // Crea fila fantasma
-            if (isMedicoAndDraft) {
-                const ghostRow = document.createElement('tr');
-                ghostRow.className = 'text-sm';
-                ghostRow.innerHTML = `
-                    <td class="px-3 py-2 text-gray-400">–</td>
-                    <td class="px-3 py-2">
-                        <textarea id="ghost-textarea" class="w-full border-0 focus:ring-0 focus:border-0 bg-transparent text-sm font-medium py-1 resize-none overflow-hidden" rows = "1" placeholder="Nueva indicación..."></textarea>
-                    </td>
-                    <td class="px-3 py-2"></td>
-                    <td class="px-3 py-2"></td>
-                    <td class="px-3 py-2 text-gray-400">–</td>`;
-                pharmaTableBody.appendChild(ghostRow);
-                
-                const ghostTextarea = ghostRow.querySelector('#ghost-textarea');
-                ghostTextarea.addEventListener('input', (e) => {
-                    const text = e.target.value;
-                
-                    // Si el texto está vacío, no hacemos nada
-                    if (text.trim().length === 0) {
-                        return;
-                    }
-                
-                    // Obtenemos el ID máximo actual
-                    const currentMaxId = appState.pharmacologicalIndications.length > 0
-                        ? Math.max(...appState.pharmacologicalIndications.map(i => i.id))
-                        : 0;
-                
-                    // Creamos un nuevo objeto de indicación con el ID y el texto
-                    const newId = currentMaxId + 1;
-                    const newIndication = {
-                        id: newId,
-                        indication: text,
-                        route: null,
-                        schedules: '',
-                        schedulesButtons: [],
-                        status: 'draft',
-                        administered: {},
-                        needsReview: true
-                    };
-                    
-                    // Agregamos el nuevo objeto al estado de la aplicación
-                    appState.pharmacologicalIndications.push(newIndication);
-                
-                    // Volvemos a renderizar la UI para que el nuevo elemento aparezca en el DOM
-                    renderUI();
-                
-                    // Obtenemos el nuevo elemento de la lista y su textarea
-                    const newIndicationItem = document.querySelector(`.indication-item[data-id="${newId}"]`);
-                    if (newIndicationItem) {
-                        const newTextarea = newIndicationItem.querySelector('[data-field="indication"]');
-                        
-                        // Transferimos el foco al nuevo textarea
-                        newTextarea.focus();
-                        
-                        // Posicionamos el cursor al final del texto
-                        newTextarea.selectionStart = newTextarea.selectionEnd = newTextarea.value.length;
-                        
-                        // Hacemos scroll para que el nuevo elemento sea visible
-                        newIndicationItem.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                    }
-                
-                    // Vaciamos el ghost-textarea para el próximo uso
-                    ghostTextarea.value = '';
-                });
-            }
             
             // Vuelve a crear la instancia de Sortable.js, unida al nuevo DOM.
             if (isMedicoAndDraft) {
@@ -1023,6 +965,76 @@ Furosemida 40mg"></textarea>
                     }
                 });
             }
+
+            // Crea fila fantasma
+            if (isMedicoAndDraft) {
+                const ghostRow = document.createElement('tr');
+                ghostRow.className = 'text-sm';
+                ghostRow.setAttribute('data-status', 'active');
+
+                ghostRow.innerHTML = `
+                    <td class="px-2 py-1.5 w-8 text-gray-400">–</td>
+                    <td class="px-2 py-1.5">
+                        <textarea id="ghost-textarea" class="w-full border-0 focus:ring-0 focus:border-0 bg-transparent text-sm font-medium py-1 resize-none overflow-hidden" rows = "1" placeholder="Nueva indicación..."></textarea>
+                    </td>
+                    <td class="px-2 py-1.5"></td>
+                    <td class="px-2 py-1.5 w-60"></td>
+                    <td class="px-2 py-1.5 w-8 text-gray-400">–</td>`;
+		pharmaFooterTable.innerHTML = '';
+                pharmaFooterTable.appendChild(ghostRow);
+
+                const ghostTextarea = ghostRow.querySelector('#ghost-textarea');
+                ghostTextarea.addEventListener('input', (e) => {
+                    const text = e.target.value;
+                
+                    // Si el texto está vacío, no hacemos nada
+                    if (text.trim().length === 0) {
+                        return;
+                    }
+                
+                    // Obtenemos el ID máximo actual
+                    const currentMaxId = appState.pharmacologicalIndications.length > 0
+                        ? Math.max(...appState.pharmacologicalIndications.map(i => i.id))
+                        : 0;
+                
+                    // Creamos un nuevo objeto de indicación con el ID y el texto
+                    const newId = currentMaxId + 1;
+                    const newIndication = {
+                        id: newId,
+                        indication: text,
+                        route: null,
+                        schedules: '',
+                        schedulesButtons: [],
+                        status: 'draft',
+                        administered: {},
+                        needsReview: true
+                    };
+                    
+                    // Agregamos el nuevo objeto al estado de la aplicación
+                    appState.pharmacologicalIndications.push(newIndication);
+                
+                    // Volvemos a renderizar la UI para que el nuevo elemento aparezca en el DOM
+                    renderUI();
+                
+                    // Obtenemos el nuevo elemento de la lista y su textarea
+                    const textareas = [...document.querySelectorAll('textarea.indication-textarea')];
+                    newTextarea = textareas[textareas.length - 1]
+                    if (newTextarea) {
+			console.log('Nueva textarea');
+                        
+                        // Transferimos el foco al nuevo textarea
+                        newTextarea.focus();
+                        
+                        // Posicionamos el cursor al final del texto
+                        newTextarea.selectionStart = newTextarea.selectionEnd = newTextarea.value.length;
+                    }
+                
+                    // Vaciamos el ghost-textarea para el próximo uso
+                    ghostTextarea.value = '';
+                });
+
+            }
+
         };
 
         const renderPendingReviewSection = () => {
@@ -1139,18 +1151,21 @@ Furosemida 40mg"></textarea>
                 // Mostrar el botón de agregar
                 addIndicationButton.classList.remove('hidden');
                     addMultipleToggle.classList.remove('hidden');
+                    pharmaFooterTable.classList.remove('hidden');
             } else {
                 actionButton.textContent = 'Editar';
                 actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
                 actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
                 addIndicationButton.classList.add('hidden');
                 addMultipleToggle.classList.add('hidden');
+                pharmaFooterTable.classList.add('hidden');
             }
         } else {
             actionButton.classList.add('hidden');
             // Ocultar el botón de agregar si no es médico
             addIndicationButton.classList.add('hidden');
                 addMultipleToggle.classList.add('hidden');
+                pharmaFooterTable.classList.add('hidden');
         }
         draftBanner.classList.toggle('hidden', !hasDraft);
         currentDateDisplay.textContent = formatDate(appState.currentDate);
@@ -1652,6 +1667,7 @@ Furosemida 40mg"></textarea>
                 }
             });
 
+
             pharmaTableBody.addEventListener('mouseout', (e) => {
                 const button = e.target.closest('.schedule-button');
                 if (button && tooltip.classList.contains('visible')) {
@@ -1703,7 +1719,8 @@ Furosemida 40mg"></textarea>
                     if (currentIndex > -1 && currentIndex < textareas.length - 1) {
                         textareas[currentIndex + 1].focus();
                     } else {
-                        activeElement.blur();
+			const ghostTextarea = document.querySelector('textarea#ghost-textarea');
+			ghostTextarea.focus();
                     }
                 }
                 // Control + Enter para insertar salto de línea en el textarea
